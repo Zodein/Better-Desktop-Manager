@@ -6,16 +6,34 @@
 #include <iostream>
 #include <vector>
 
-#include "../window_switcher/window_switcher_gui.h"
+#include "../window_switcher/window_switcher.h"
 
 ThumbnailManager::ThumbnailManager(int margin, int thumbnail_height) {
     this->margin = margin;
     this->thumbnail_height = thumbnail_height;
-    this->max_width = (3440 / 4 * 3);
+    this->max_width = (3440);
+}
+
+bool ThumbnailManager::check_if_new_thumbnails_added() {
+    std::cout << "checking thumbnails\n";
+    this->destroy_all_comparing_thumbnails();
+    EnumWindows(ThumbnailManager::collector_callback, reinterpret_cast<LPARAM>(&this->thumbnails_comparing));
+    if (this->thumbnails.size() != this->thumbnails_comparing.size()) {
+        std::cout << "sizes not equal\n";
+        return true;
+    }
+    for (int i = 0; i < this->thumbnails.size(); i++) {
+        if (this->thumbnails[i]->self_hwnd != this->thumbnails_comparing[i]->self_hwnd) {
+            std::cout << "hwnds not equal\n";
+            return true;
+        }
+    }
+    return false;
 }
 
 void ThumbnailManager::collect_all_thumbnails() {
-    EnumWindows(ThumbnailManager::collector_callback, reinterpret_cast<LPARAM>(this));
+    this->destroy_all_thumbnails();
+    EnumWindows(ThumbnailManager::collector_callback, reinterpret_cast<LPARAM>(&this->thumbnails));
     return;
 }
 
@@ -33,14 +51,13 @@ void ThumbnailManager::calculate_all_thumbnails_positions() {
             if (i == this->thumbnails.size()) break;
         }
         this->widths.push_back(x);
-        x = this->margin / 2;
     }
 
     i = 0;
-    this->window_width = (*max_element(std::begin(this->widths), std::end(this->widths)));
+    this->window_width = this->max_width;
     int x = (this->window_width - this->widths[u]) / 2;
     while (i < this->thumbnails.size()) {
-        if (x + this->margin + this->thumbnails[i]->thumbnail_position.width > this->widths[u]) {
+        if (x + (this->thumbnail_height * this->thumbnails[i]->ratio) + this->margin > this->window_width) {
             u++;
             x = (this->window_width - this->widths[u]) / 2;
             continue;
@@ -72,44 +89,47 @@ void ThumbnailManager::register_all_thumbnails() {
     return;
 }
 
+void ThumbnailManager::destroy_all_thumbnails() {
+    for (auto i : this->thumbnails) {
+        delete i;
+    }
+    this->thumbnails.clear();
+    return;
+}
+
+void ThumbnailManager::destroy_all_comparing_thumbnails() {
+    for (auto i : this->thumbnails_comparing) {
+        delete i;
+    }
+    this->thumbnails_comparing.clear();
+    return;
+}
+
+void ThumbnailManager::update_thumbnails_if_needed() {
+    if (WindowSwitcher::thumbnail_manager->check_if_new_thumbnails_added()) {
+        WindowSwitcher::thumbnail_manager->collect_all_thumbnails();
+        WindowSwitcher::thumbnail_manager->update_all_windows_positions();
+        WindowSwitcher::thumbnail_manager->calculate_all_thumbnails_positions();
+        WindowSwitcher::thumbnail_manager->register_all_thumbnails();
+        WindowSwitcher::resize_window();
+    }
+    return;
+}
+
 BOOL CALLBACK ThumbnailManager::collector_callback(HWND hwnd, LPARAM lParam) {
-    // if (IsIconic(hwnd)) return TRUE;
-
     if (!IsWindowVisible(hwnd)) return TRUE;
-
     RECT rect;
     GetWindowRect(hwnd, &rect);
     if (((rect.right - rect.left == 0) || rect.bottom - rect.top == 0) || ((rect.right - rect.left < 0) || rect.bottom - rect.top < 0)) {
         return TRUE;
     }
-
     if (GetWindowLong(hwnd, GWL_EXSTYLE) & WS_EX_TOOLWINDOW && !(GetWindowLong(hwnd, GWL_EXSTYLE) & WS_EX_APPWINDOW)) return TRUE;
-
-    // TITLEBARINFO ti;
-    // ti.cbSize = sizeof(ti);
-    // GetTitleBarInfo(hwnd, &ti);
-    // if (ti.rgstate[0] & STATE_SYSTEM_INVISIBLE) return TRUE;
-
-    // HWND hwndTry, hwndWalk = NULL;
-    // hwndTry = GetAncestor(hwnd, GA_ROOTOWNER);
-    // while (hwndTry != hwndWalk) {
-    //     hwndWalk = hwndTry;
-    //     hwndTry = GetLastActivePopup(hwndWalk);
-    //     if (IsWindowVisible(hwndTry)) break;
-    // }
-    // if (hwndWalk != hwnd) return TRUE;
-
-    if (hwnd == WindowSwitcherGUI::hwnd) return TRUE;
-
+    if (hwnd == WindowSwitcher::hwnd) return TRUE;
     int is_cloaked;
     DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, &is_cloaked, sizeof(int));
     if (is_cloaked) return TRUE;
 
-    wchar_t wnd_title[256];
-    GetWindowText(hwnd, wnd_title, 256);
-    std::wcout << wnd_title << L" - MINIMIZED: " << hwnd << L"\n";
-
-    ThumbnailManager *thumbnail_manager = reinterpret_cast<ThumbnailManager *>(lParam);
-    thumbnail_manager->thumbnails.push_back(new Thumbnail(hwnd, WindowSwitcherGUI::hwnd, thumbnail_manager->thumbnails.size()));
+    std::vector<Thumbnail *> *thumbnails = reinterpret_cast<std::vector<Thumbnail *> *>(lParam);
+    thumbnails->push_back(new Thumbnail(hwnd, WindowSwitcher::hwnd, thumbnails->size()));
     return TRUE;
 }

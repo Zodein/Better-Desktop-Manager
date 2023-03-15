@@ -13,6 +13,7 @@
                 "${workspaceFolder}\\window_switcher\\**.cc",
                 "-ldwmapi",
                 "-lgdi32",
+                "-lgdiplus",
                 "-o",
                 "${workspaceFolder}\\app.exe"
             ],

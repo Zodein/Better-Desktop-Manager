@@ -1,9 +1,6 @@
 #include "thumbnail.h"
 
-Thumbnail::Thumbnail(HWND self_hwnd, HWND destination_hwnd) {
-    this->self_hwnd = self_hwnd;
-    this->destination_hwnd = destination_hwnd;
-}
+#include "iostream"
 
 Thumbnail::Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order) {
     this->self_hwnd = self_hwnd;
@@ -11,15 +8,10 @@ Thumbnail::Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order) {
     this->order = order;
 }
 
-Thumbnail::Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order, int x, int y, int width, int height) {
-    this->self_hwnd = self_hwnd;
-    this->destination_hwnd = destination_hwnd;
-    this->order = order;
-    this->window_position.x = x;
-    this->window_position.y = y;
-    this->window_position.width = width;
-    this->window_position.height = height;
+Thumbnail::~Thumbnail() {
+    if (this->registered) this->unregister_thumbnail();
 }
+
 void Thumbnail::register_thumbnail() {
     HRESULT hr = DwmRegisterThumbnail(this->destination_hwnd, this->self_hwnd, &thumbnail);
     if (SUCCEEDED(hr)) {
@@ -30,33 +22,15 @@ void Thumbnail::register_thumbnail() {
         this->thumbnail_properties.opacity = 255;
         this->thumbnail_properties.rcDestination = dest;
         hr = DwmUpdateThumbnailProperties(thumbnail, &this->thumbnail_properties);
+        this->registered = true;
     }
     return;
 }
 
-int Thumbnail::update_n_get_x() {
-    this->update_window_position();
-    return this->window_position.x;
-}
-
-int Thumbnail::update_n_get_y() {
-    this->update_window_position();
-    return this->window_position.y;
-}
-
-int Thumbnail::update_n_get_width() {
-    this->update_window_position();
-    return this->window_position.width;
-}
-
-int Thumbnail::update_n_get_height() {
-    this->update_window_position();
-    return this->window_position.height;
-}
-
-double Thumbnail::update_n_get_ratio() {
-    this->update_window_position();
-    return (double)this->window_position.width / (double)this->window_position.height;
+void Thumbnail::unregister_thumbnail() {
+    this->registered = false;
+    DwmUnregisterThumbnail(this->thumbnail);
+    return;
 }
 
 void Thumbnail::update_window_position() {

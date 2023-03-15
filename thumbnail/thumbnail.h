@@ -21,16 +21,12 @@ class Thumbnail {
     Position thumbnail_position;
     int order;
     double ratio;
+    bool registered = false;
 
-    Thumbnail(HWND self_hwnd, HWND destination_hwnd);
     Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order);
-    Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order, int x, int y, int width, int height);
+    ~Thumbnail();
     void register_thumbnail();
-    int update_n_get_x();
-    int update_n_get_y();
-    int update_n_get_width();
-    int update_n_get_height();
-    double update_n_get_ratio();
+    void unregister_thumbnail();
     void update_window_position();
 };
 #endif
