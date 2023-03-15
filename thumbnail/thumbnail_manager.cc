@@ -6,12 +6,12 @@
 #include <iostream>
 #include <vector>
 
+#include "../monitor_resolver/monitor_resolver.h"
 #include "../window_switcher/window_switcher.h"
 
 ThumbnailManager::ThumbnailManager(int margin, int thumbnail_height) {
     this->margin = margin;
     this->thumbnail_height = thumbnail_height;
-    this->max_width = (3440);
 }
 
 bool ThumbnailManager::check_if_new_thumbnails_added() {
@@ -38,6 +38,7 @@ void ThumbnailManager::collect_all_thumbnails() {
 }
 
 void ThumbnailManager::calculate_all_thumbnails_positions() {
+    this->window_width = MonitorResolver::selected_monitor->get_width();
     int i = 0;
     int u = 0;
     this->widths.clear();
@@ -45,7 +46,7 @@ void ThumbnailManager::calculate_all_thumbnails_positions() {
         int x = this->margin;
         while (1) {
             int add_to_x = (this->thumbnail_height * this->thumbnails[i]->ratio) + this->margin;
-            if (x + add_to_x >= max_width) break;
+            if (x + add_to_x >= this->window_width) break;
             x += add_to_x;
             i++;
             if (i == this->thumbnails.size()) break;
@@ -54,7 +55,6 @@ void ThumbnailManager::calculate_all_thumbnails_positions() {
     }
 
     i = 0;
-    this->window_width = this->max_width;
     int x = (this->window_width - this->widths[u]) / 2;
     while (i < this->thumbnails.size()) {
         if (x + (this->thumbnail_height * this->thumbnails[i]->ratio) + this->margin > this->window_width) {
@@ -63,14 +63,14 @@ void ThumbnailManager::calculate_all_thumbnails_positions() {
             continue;
         }
         this->thumbnails[i]->thumbnail_position.x = x + this->margin;
-        this->thumbnails[i]->thumbnail_position.y = (this->thumbnail_height + this->margin) * u + this->margin;
+        this->thumbnails[i]->thumbnail_position.y = (this->thumbnail_height + this->margin + WindowSwitcher::title_height) * u + this->margin;
         this->thumbnails[i]->thumbnail_position.width = this->thumbnail_height * this->thumbnails[i]->ratio;
         this->thumbnails[i]->thumbnail_position.height = this->thumbnail_height;
 
         x += (this->thumbnail_height * this->thumbnails[i]->ratio) + this->margin;
         i++;
     }
-    this->window_height = (this->thumbnail_height + this->margin) * (u + 1) + this->margin;
+    this->window_height = (this->thumbnail_height + this->margin + WindowSwitcher::title_height) * (u + 1) + this->margin;
     return;
 }
 
@@ -111,7 +111,7 @@ void ThumbnailManager::update_thumbnails_if_needed() {
         WindowSwitcher::thumbnail_manager->update_all_windows_positions();
         WindowSwitcher::thumbnail_manager->calculate_all_thumbnails_positions();
         WindowSwitcher::thumbnail_manager->register_all_thumbnails();
-        WindowSwitcher::resize_window();
+        // WindowSwitcher::resize_window();
     }
     return;
 }

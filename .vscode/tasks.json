@@ -11,6 +11,7 @@
                 "${workspaceFolder}\\**.cc",
                 "${workspaceFolder}\\thumbnail\\**.cc",
                 "${workspaceFolder}\\window_switcher\\**.cc",
+                "${workspaceFolder}\\monitor_resolver\\**.cc",
                 "-ldwmapi",
                 "-lgdi32",
                 "-lgdiplus",

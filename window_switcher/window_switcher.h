@@ -14,10 +14,13 @@ class WindowSwitcher {
     static WNDCLASSEX wc;
     static WNDCLASSEX wc_child;
     static HBRUSH background_brush;
-    static HBRUSH border_brush;
+    static HBRUSH on_mouse_brush;
+    static HBRUSH selected_brush;
     static HBRUSH null_brush;
     static RECT rect;
     static int mouse_on;
+    static int selected_window;
+    static int title_height;
 
     static LRESULT CALLBACK window_proc(HWND handle_window, UINT message, WPARAM wParam, LPARAM lParam);
     static LRESULT CALLBACK window_proc_child(HWND handle_window, UINT message, WPARAM wParam, LPARAM lParam);
@@ -26,5 +29,6 @@ class WindowSwitcher {
     static void hide_window();
     static void resize_window();
     static void on_mouse_message(LPARAM lParam);
+    static void activate_window(HWND hwnd);
 };
 #endif

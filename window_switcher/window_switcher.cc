@@ -4,6 +4,7 @@
 
 #include <thread>
 
+#include "../monitor_resolver/monitor_resolver.h"
 #include "../thumbnail/thumbnail.h"
 #include "gdiplus.h"
 #include "iostream"
@@ -16,9 +17,12 @@ HWND WindowSwitcher::hwnd_child;
 WNDCLASSEX WindowSwitcher::wc;
 WNDCLASSEX WindowSwitcher::wc_child;
 int WindowSwitcher::mouse_on = -1;
+int WindowSwitcher::selected_window = -1;
+int WindowSwitcher::title_height = 20;
 
 HBRUSH WindowSwitcher::background_brush = CreateSolidBrush(RGB(0, 0, 0));
-HBRUSH WindowSwitcher::border_brush = CreateSolidBrush(RGB(96, 96, 96));
+HBRUSH WindowSwitcher::on_mouse_brush = CreateSolidBrush(RGB(255, 255, 255));
+HBRUSH WindowSwitcher::selected_brush = CreateSolidBrush(RGB(255, 255, 255));
 HBRUSH WindowSwitcher::null_brush = (HBRUSH)GetStockObject(NULL_BRUSH);
 RECT WindowSwitcher::rect = {0, 0, 0, 0};
 
@@ -44,7 +48,6 @@ void WindowSwitcher::on_mouse_message(LPARAM lParam) {
         WindowSwitcher::mouse_on = -1;
         InvalidateRect(WindowSwitcher::hwnd_child, NULL, FALSE);
     }
-    // std::cout << "mousemove\n";
     return;
 }
 
@@ -63,34 +66,17 @@ LRESULT CALLBACK WindowSwitcher::window_proc(HWND handle_window, UINT message, W
                             last_checked = GetTickCount() + 100;
                         }
                     }
-                    WindowSwitcher::hide_window();
+                    if (IsWindowVisible(WindowSwitcher::hwnd)) {
+                        WindowSwitcher::activate_window(WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::selected_window]->self_hwnd);
+                        WindowSwitcher::hide_window();
+                    }
                     return;
                 });
                 t1.detach();
-
                 std::cout << "HOTKEY\n";
             }
             break;
         }
-        // case WM_LBUTTONDOWN: {
-        //     if (WindowSwitcher::mouse_on != -1) {
-        //         SetForegroundWindow(WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::mouse_on]->self_hwnd);
-        //         WindowSwitcher::hide_window();
-        //     }
-        //     std::cout << "clicked on parent\n";
-        //     break;
-        // }
-        // case WM_MBUTTONDOWN: {
-        //     if (WindowSwitcher::mouse_on != -1) {
-        //         SendMessage(WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::mouse_on]->self_hwnd, WM_CLOSE, 0, 0);
-        //     }
-        //     std::cout << "clicked on parent\n";
-        //     break;
-        // }
-        // case WM_MOUSEMOVE:
-        //     WindowSwitcher::on_mouse_message(lParam);
-        //     std::cout << "mousemove on parent\n";
-        //     break;
         case WM_PAINT: {
             InvalidateRect(WindowSwitcher::hwnd_child, NULL, FALSE);
             PAINTSTRUCT ps;
@@ -113,18 +99,30 @@ LRESULT CALLBACK WindowSwitcher::window_proc(HWND handle_window, UINT message, W
 }
 LRESULT CALLBACK WindowSwitcher::window_proc_child(HWND handle_window, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
+        case WM_MOUSEWHEEL: {
+            if (GET_WHEEL_DELTA_WPARAM(wParam) < 0 && WindowSwitcher::selected_window + 1 < WindowSwitcher::thumbnail_manager->thumbnails.size())
+                WindowSwitcher::selected_window++;
+            else if (GET_WHEEL_DELTA_WPARAM(wParam) > 0 && WindowSwitcher::selected_window > 0)
+                WindowSwitcher::selected_window--;
+            else
+                break;
+            InvalidateRect(WindowSwitcher::hwnd_child, NULL, FALSE);
+            break;
+        }
         case WM_LBUTTONDOWN: {
             if (WindowSwitcher::mouse_on != -1) {
-                SetForegroundWindow(WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::mouse_on]->self_hwnd);
+                WindowSwitcher::activate_window(WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::mouse_on]->self_hwnd);
                 WindowSwitcher::hide_window();
                 std::cout << "clicked on child\n";
             }
+            break;
         }
         case WM_MBUTTONDOWN: {
             if (WindowSwitcher::mouse_on != -1) {
                 SendMessage(WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::mouse_on]->self_hwnd, WM_CLOSE, 0, 0);
                 std::cout << "clicked on child\n";
             }
+            break;
         }
         case WM_MOUSEMOVE:
             WindowSwitcher::on_mouse_message(lParam);
@@ -138,13 +136,40 @@ LRESULT CALLBACK WindowSwitcher::window_proc_child(HWND handle_window, UINT mess
             GetClipBox(hdca, &rect);
             FillRect(hdca, &rect, WindowSwitcher::background_brush);
 
-            if (mouse_on >= 0) {
-                int border_width = 8;
+            if (WindowSwitcher::mouse_on >= 0) {
+                int border_width = 4;
                 rect.left = WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::mouse_on]->thumbnail_position.x - border_width;
                 rect.top = WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::mouse_on]->thumbnail_position.y - border_width;
                 rect.right = WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::mouse_on]->thumbnail_position.x + WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::mouse_on]->thumbnail_position.width + border_width;
                 rect.bottom = WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::mouse_on]->thumbnail_position.y + WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::mouse_on]->thumbnail_position.height + border_width;
-                FillRect(hdca, &rect, WindowSwitcher::border_brush);
+                FillRect(hdca, &rect, WindowSwitcher::on_mouse_brush);
+            }
+            if (WindowSwitcher::selected_window >= 0) {
+                {
+                    int border_width = 2;
+                    rect.left = WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::selected_window]->thumbnail_position.x - border_width;
+                    rect.top = WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::selected_window]->thumbnail_position.y - border_width;
+                    rect.right = WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::selected_window]->thumbnail_position.x + WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::selected_window]->thumbnail_position.width + border_width;
+                    rect.bottom = WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::selected_window]->thumbnail_position.y + WindowSwitcher::thumbnail_manager->thumbnails[WindowSwitcher::selected_window]->thumbnail_position.height + border_width;
+                    FillRect(hdca, &rect, WindowSwitcher::selected_brush);
+                }
+                {
+                    HFONT font = CreateFont(16, 0, 0, 0, 300, false, false, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, L"Courier New");
+                    SelectObject(hdca, font);
+                    SetBkColor(hdca, 0);
+                    SetTextColor(hdca, 0x00ffffff);
+                    SetBkMode(hdca, TRANSPARENT);
+                    for (auto i : WindowSwitcher::thumbnail_manager->thumbnails) {
+                        wchar_t title[128];
+                        GetWindowText(i->self_hwnd, title, 128);
+                        rect.left = i->thumbnail_position.x;
+                        rect.top = i->thumbnail_position.y - 20;
+                        rect.right = i->thumbnail_position.x + i->thumbnail_position.width;
+                        rect.bottom = i->thumbnail_position.y;
+                        DrawText(hdca, title, -1, &rect, DT_BOTTOM | DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+                    }
+                    DeleteObject(font);
+                }
             }
 
             EndPaint(WindowSwitcher::hwnd_child, &ps);
@@ -165,6 +190,7 @@ LRESULT CALLBACK WindowSwitcher::window_proc_child(HWND handle_window, UINT mess
 }
 
 int WindowSwitcher::create_window() {
+    MonitorResolver::update_monitors_data();
     WindowSwitcher::wc.cbSize = sizeof(WNDCLASSEX);
     WindowSwitcher::wc.style = 0;
     WindowSwitcher::wc.lpfnWndProc = WindowSwitcher::window_proc;
@@ -188,8 +214,8 @@ int WindowSwitcher::create_window() {
         return 0;
     }
 
-    WindowSwitcher::hwnd = CreateWindowEx(0, WindowSwitcher::wc.lpszClassName, L"Better Desktop Manager", WS_POPUP, CW_USEDEFAULT, CW_USEDEFAULT, 3440, 1440, NULL, NULL, WindowSwitcher::wc.hInstance, NULL);
-    WindowSwitcher::hwnd_child = CreateWindowEx(0, WindowSwitcher::wc_child.lpszClassName, L"Better Desktop Manager", WS_CHILD | WS_VISIBLE, 0, 0, 3440, 1440, WindowSwitcher::hwnd, NULL, NULL, NULL);
+    WindowSwitcher::hwnd = CreateWindowEx(0, WindowSwitcher::wc.lpszClassName, L"Better Desktop Manager", WS_POPUP, MonitorResolver::selected_monitor->get_x(), MonitorResolver::selected_monitor->get_y(), MonitorResolver::selected_monitor->get_width(), MonitorResolver::selected_monitor->get_height(), NULL, NULL, WindowSwitcher::wc.hInstance, NULL);
+    WindowSwitcher::hwnd_child = CreateWindowEx(0, WindowSwitcher::wc_child.lpszClassName, L"Better Desktop Manager", WS_CHILD | WS_VISIBLE, 0, 0, MonitorResolver::selected_monitor->get_width(), MonitorResolver::selected_monitor->get_height(), WindowSwitcher::hwnd, NULL, NULL, NULL);
 
     if (WindowSwitcher::hwnd == NULL || WindowSwitcher::hwnd_child == NULL) {
         DWORD x = GetLastError();
@@ -210,14 +236,17 @@ int WindowSwitcher::create_window() {
     return msg.wParam;
 }
 
+void WindowSwitcher::activate_window(HWND hwnd_window) {
+    if (IsIconic(hwnd_window))
+        ShowWindow(hwnd_window, SW_RESTORE);
+    else
+        SetForegroundWindow(hwnd_window);
+}
+
 void WindowSwitcher::show_window() {
+    WindowSwitcher::selected_window = 1;
     WindowSwitcher::thumbnail_manager->update_thumbnails_if_needed();
-    // int x = (3440 - WindowSwitcher::thumbnail_manager->window_width) / 2;
-    // int y = (1440 - WindowSwitcher::thumbnail_manager->window_height) / 2;
-    // int width = WindowSwitcher::thumbnail_manager->window_width;
-    // int height = WindowSwitcher::thumbnail_manager->window_height;
-    // SetWindowPos(WindowSwitcher::hwnd, HWND_TOPMOST, x, y, width, height, SWP_SHOWWINDOW);
-    SetWindowPos(WindowSwitcher::hwnd, HWND_TOPMOST, 0, 0, 3440, 1440, SWP_SHOWWINDOW);
+    SetWindowPos(WindowSwitcher::hwnd, HWND_TOPMOST, MonitorResolver::selected_monitor->get_x(), MonitorResolver::selected_monitor->get_y(), MonitorResolver::selected_monitor->get_width(), MonitorResolver::selected_monitor->get_height(), SWP_SHOWWINDOW);
     return;
 }
 
@@ -228,11 +257,6 @@ void WindowSwitcher::hide_window() {
 }
 
 void WindowSwitcher::resize_window() {
-    // int x = (3440 - WindowSwitcher::thumbnail_manager->window_width) / 2;
-    // int y = (1440 - WindowSwitcher::thumbnail_manager->window_height) / 2;
-    // int width = WindowSwitcher::thumbnail_manager->window_width;
-    // int height = WindowSwitcher::thumbnail_manager->window_height;
-    // SetWindowPos(WindowSwitcher::hwnd, HWND_TOPMOST, x, y, width, height, SWP_SHOWWINDOW);
-    SetWindowPos(WindowSwitcher::hwnd, HWND_TOPMOST, 0, 0, 3440, 1440, SWP_SHOWWINDOW);
+    SetWindowPos(WindowSwitcher::hwnd, HWND_TOPMOST, MonitorResolver::selected_monitor->get_x(), MonitorResolver::selected_monitor->get_y(), MonitorResolver::selected_monitor->get_width(), MonitorResolver::selected_monitor->get_height(), SWP_SHOWWINDOW);
     return;
 }

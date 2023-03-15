@@ -12,7 +12,6 @@ class ThumbnailManager {
     int window_height;
     int margin;
     int thumbnail_height;
-    int max_width;
     std::vector<int> widths;
 
     ThumbnailManager(int margin, int thumbnail_height);
