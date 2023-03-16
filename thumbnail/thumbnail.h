@@ -22,8 +22,9 @@ class Thumbnail {
     int order;
     double ratio;
     bool registered = false;
+    HMONITOR on_monitor = (HMONITOR)-1;
 
-    Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order);
+    Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order, HMONITOR on_monitor);
     ~Thumbnail();
     void register_thumbnail();
     void unregister_thumbnail();

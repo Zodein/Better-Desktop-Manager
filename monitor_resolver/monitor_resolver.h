@@ -2,6 +2,7 @@
 #define MONITOR_RESOLVER_H
 #include <windows.h>
 
+#include <map>
 #include <vector>
 
 class Monitor {
@@ -11,13 +12,15 @@ class Monitor {
     int right = 0;
     int bottom = 0;
     bool is_primary = false;
+    HMONITOR handle = 0;
 
-    Monitor(int left, int top, int right, int bottom, bool is_primary) {
+    Monitor(int left, int top, int right, int bottom, bool is_primary, HMONITOR handle) {
         this->left = left;
         this->top = top;
         this->right = right;
         this->bottom = bottom;
         this->is_primary = is_primary;
+        this->handle = handle;
     }
     int get_width() { return this->right - this->left; }
     int get_height() { return this->bottom - this->top; }
@@ -30,7 +33,7 @@ class Monitor {
 class MonitorResolver {
    public:
     static Monitor *selected_monitor;
-    static std::vector<Monitor *> monitors;
+    static std::map<HMONITOR, Monitor *> monitors;
     static BOOL CALLBACK monitor_enum(HMONITOR hMon, HDC hdc, LPRECT rect, LPARAM pData);
     static void update_monitors_data();
 };

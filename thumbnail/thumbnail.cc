@@ -2,10 +2,11 @@
 
 #include "iostream"
 
-Thumbnail::Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order) {
+Thumbnail::Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order, HMONITOR on_monitor) {
     this->self_hwnd = self_hwnd;
     this->destination_hwnd = destination_hwnd;
     this->order = order;
+    this->on_monitor = on_monitor;
 }
 
 Thumbnail::~Thumbnail() {
