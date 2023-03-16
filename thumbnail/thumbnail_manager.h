@@ -21,7 +21,7 @@ class ThumbnailManager {
 
     ThumbnailManager(WindowSwitcher *window_switcher);
     bool check_if_new_thumbnails_added();
-    void calculate_all_thumbnails_positions();
+    void calculate_all_thumbnails_positions(double extra_ratio = 1.0);
     void update_all_windows_positions();
     void collect_all_thumbnails();
     void register_all_thumbnails();

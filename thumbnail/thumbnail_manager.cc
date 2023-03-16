@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <numeric>
 #include <vector>
 
 ThumbnailManager::ThumbnailManager(WindowSwitcher *window_switcher) {
@@ -35,38 +36,73 @@ void ThumbnailManager::collect_all_thumbnails() {
     return;
 }
 
-void ThumbnailManager::calculate_all_thumbnails_positions() {
+void ThumbnailManager::calculate_all_thumbnails_positions(double extra_ratio) {
     this->window_width = w_s->monitor->get_width();
     int i = 0;
     int u = 0;
     this->widths.clear();
     while (i < this->thumbnails.size()) {
-        int x = this->w_s->margin;
-        while (1) {
-            int add_to_x = (this->w_s->thumbnail_height * this->thumbnails[i]->ratio) + this->w_s->margin;
-            if (x + add_to_x >= this->window_width) break;
-            x += add_to_x;
+        if ((this->w_s->thumbnail_height * this->thumbnails[i]->ratio * extra_ratio) > this->window_width) {
+            this->widths.push_back(this->window_width);
             i++;
-            if (i == this->thumbnails.size()) break;
+        } else {
+            int x = this->w_s->margin;
+            while (1) {
+                int add_to_x = (this->w_s->thumbnail_height * this->thumbnails[i]->ratio * extra_ratio) + this->w_s->margin;
+                if (x + add_to_x >= this->window_width) break;
+                x += add_to_x;
+                i++;
+                if (i == this->thumbnails.size()) break;
+            }
+            this->widths.push_back(x);
         }
-        this->widths.push_back(x);
+    }
+
+    this->window_height = this->w_s->monitor->get_height();
+    if (((this->w_s->thumbnail_height + this->w_s->margin + this->w_s->title_height) * this->widths.size() * extra_ratio) > this->window_height) {
+        return this->calculate_all_thumbnails_positions(extra_ratio * (double)(0.9));
+        extra_ratio = (double)this->window_height / (double)((this->w_s->thumbnail_height + this->w_s->margin + this->w_s->title_height) * (this->widths.size()));
     }
 
     i = 0;
     int x = (this->window_width - this->widths[u]) / 2;
+    int add_to_y = 0;
+    {
+        add_to_y = this->w_s->monitor->get_height();
+        add_to_y -= (this->w_s->thumbnail_height + this->w_s->margin + this->w_s->title_height) * (this->widths.size()) * extra_ratio;
+        add_to_y /= 2;
+    }
+    int y = 0;
     while (i < this->thumbnails.size()) {
-        if (x + (this->w_s->thumbnail_height * this->thumbnails[i]->ratio) + this->w_s->margin > this->window_width) {
+        if (x + (this->w_s->thumbnail_height * this->thumbnails[i]->ratio * extra_ratio) + this->w_s->margin > this->window_width && y != 0) {
             u++;
+            y = 0;
             x = (this->window_width - this->widths[u]) / 2;
             continue;
         }
-        this->thumbnails[i]->thumbnail_position.x = x + this->w_s->margin;
-        this->thumbnails[i]->thumbnail_position.y = (this->w_s->thumbnail_height + this->w_s->margin + this->w_s->title_height) * u + this->w_s->margin;
-        this->thumbnails[i]->thumbnail_position.width = this->w_s->thumbnail_height * this->thumbnails[i]->ratio;
-        this->thumbnails[i]->thumbnail_position.height = this->w_s->thumbnail_height;
+        {
+            this->thumbnails[i]->thumbnail_position.x = x;
+            this->thumbnails[i]->thumbnail_position.y = (this->w_s->thumbnail_height + this->w_s->margin + this->w_s->title_height) * u * extra_ratio;
+            this->thumbnails[i]->thumbnail_position.width = this->w_s->thumbnail_height * this->thumbnails[i]->ratio * extra_ratio;
+            this->thumbnails[i]->thumbnail_position.height = this->w_s->thumbnail_height * extra_ratio;
+        }
+        {
+            this->thumbnails[i]->thumbnail_position.x += this->w_s->margin;
+            this->thumbnails[i]->thumbnail_position.y += this->w_s->margin;
+            this->thumbnails[i]->thumbnail_position.y += this->w_s->title_height;
+            this->thumbnails[i]->thumbnail_position.y += add_to_y;
+        }
 
-        x += (this->w_s->thumbnail_height * this->thumbnails[i]->ratio) + this->w_s->margin;
+        if (this->thumbnails[i]->thumbnail_position.width >= this->window_width) {
+            double new_ratio = (double)(this->window_width - ((this->w_s->margin * 2))) / (double)this->thumbnails[i]->thumbnail_position.width;
+            this->thumbnails[i]->thumbnail_position.width *= new_ratio;
+            this->thumbnails[i]->thumbnail_position.height *= new_ratio;
+            this->thumbnails[i]->thumbnail_position.y += (this->w_s->thumbnail_height - (this->w_s->thumbnail_height * new_ratio)) / 2;
+        }
+
+        x += this->thumbnails[i]->thumbnail_position.width + this->w_s->margin;
         i++;
+        y++;
     }
     this->window_height = (this->w_s->thumbnail_height + this->w_s->margin + this->w_s->title_height) * (u + 1) + this->w_s->margin;
     return;
@@ -148,7 +184,7 @@ BOOL CALLBACK ThumbnailManager::collector_callback(HWND hwnd, LPARAM lParam) {
     if (on_monitor_pair != MonitorResolver::monitors.end()) on_monitor = on_monitor_pair->first;
     if (on_monitor != w_s->monitor->handle) return TRUE;
 
-    w_s->thumbnail_manager->thumbnails.push_back(new Thumbnail(hwnd, w_s->hwnd, w_s->thumbnail_manager->thumbnails.size(), on_monitor));
+    w_s->thumbnail_manager->thumbnails.push_back(new Thumbnail(hwnd, w_s->hwnd, w_s->thumbnail_manager->thumbnails.size(), w_s->monitor));
     return TRUE;
 }
 
@@ -188,6 +224,6 @@ BOOL CALLBACK ThumbnailManager::comparing_collector_callback(HWND hwnd, LPARAM l
     if (on_monitor_pair != MonitorResolver::monitors.end()) on_monitor = on_monitor_pair->first;
     if (on_monitor != w_s->monitor->handle) return TRUE;
 
-    w_s->thumbnail_manager->thumbnails_comparing.push_back(new Thumbnail(hwnd, w_s->hwnd, w_s->thumbnail_manager->thumbnails_comparing.size(), on_monitor));
+    w_s->thumbnail_manager->thumbnails_comparing.push_back(new Thumbnail(hwnd, w_s->hwnd, w_s->thumbnail_manager->thumbnails_comparing.size(), w_s->monitor));
     return TRUE;
 }

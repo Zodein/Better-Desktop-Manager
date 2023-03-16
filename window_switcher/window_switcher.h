@@ -26,8 +26,8 @@ class WindowSwitcher {
     ThumbnailManager* thumbnail_manager;
     HWND hwnd;
     HWND hwnd_child;
-    WNDCLASSEX wc;
-    WNDCLASSEX wc_child;
+    static WNDCLASSEX wc;
+    static WNDCLASSEX wc_child;
     int mouse_on = -1;
     int selected_window = -1;
     int title_height = 20;
@@ -35,10 +35,10 @@ class WindowSwitcher {
     int thumbnail_height = 384;
     Monitor* monitor;
 
-    HBRUSH background_brush = CreateSolidBrush(RGB(0, 0, 0));
-    HBRUSH on_mouse_brush = CreateSolidBrush(RGB(255, 255, 255));
-    HBRUSH selected_brush = CreateSolidBrush(RGB(255, 255, 255));
-    HBRUSH null_brush = (HBRUSH)GetStockObject(NULL_BRUSH);
+    static HBRUSH background_brush;
+    static HBRUSH on_mouse_brush;
+    static HBRUSH selected_brush;
+    static HBRUSH null_brush;
     RECT rect = {0, 0, 0, 0};
 
     static LRESULT CALLBACK window_proc_static(HWND handle_window, UINT message, WPARAM wParam, LPARAM lParam);

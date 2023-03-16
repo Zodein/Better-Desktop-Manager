@@ -2,7 +2,7 @@
 
 #include "iostream"
 
-Thumbnail::Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order, HMONITOR on_monitor) {
+Thumbnail::Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order, Monitor* on_monitor) {
     this->self_hwnd = self_hwnd;
     this->destination_hwnd = destination_hwnd;
     this->order = order;
@@ -36,21 +36,22 @@ void Thumbnail::unregister_thumbnail() {
 
 void Thumbnail::update_window_position() {
     RECT rect;
-    WINDOWPLACEMENT placement;
-    BOOL result = GetWindowPlacement(this->self_hwnd, &placement);
-    GetWindowRect(this->self_hwnd, &rect);
     if (IsIconic(this->self_hwnd)) {
+        WINDOWPLACEMENT placement;
+        GetWindowPlacement(this->self_hwnd, &placement);
         if (placement.flags == 2) {
-            rect.bottom = 1448;
-            rect.left = -8;
-            rect.right = 3448;
-            rect.top = -8;
+            rect.left = this->on_monitor->get_x() - 8;
+            rect.top = this->on_monitor->get_y() - 8;
+            rect.right = this->on_monitor->get_width() + 8;
+            rect.bottom = this->on_monitor->get_height() + 8;
         } else {
-            rect.bottom = placement.rcNormalPosition.bottom;
             rect.left = placement.rcNormalPosition.left;
-            rect.right = placement.rcNormalPosition.right;
             rect.top = placement.rcNormalPosition.top;
+            rect.right = placement.rcNormalPosition.right;
+            rect.bottom = placement.rcNormalPosition.bottom;
         }
+    } else {
+        GetWindowRect(this->self_hwnd, &rect);
     }
     this->window_position.width = rect.right - rect.left;
     this->window_position.height = rect.bottom - rect.top;

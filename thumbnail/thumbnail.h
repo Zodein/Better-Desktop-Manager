@@ -2,6 +2,8 @@
 #define THUMBNAIL_H
 #include <dwmapi.h>
 
+#include "../monitor_resolver/monitor_resolver.h"
+
 class Position {
    public:
     int x = 0;
@@ -22,9 +24,9 @@ class Thumbnail {
     int order;
     double ratio;
     bool registered = false;
-    HMONITOR on_monitor = (HMONITOR)-1;
+    Monitor* on_monitor;
 
-    Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order, HMONITOR on_monitor);
+    Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order, Monitor* on_monitor);
     ~Thumbnail();
     void register_thumbnail();
     void unregister_thumbnail();

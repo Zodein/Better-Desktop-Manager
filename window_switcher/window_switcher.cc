@@ -11,6 +11,13 @@
 #include "wingdi.h"
 #include "winuser.h"
 
+WNDCLASSEX WindowSwitcher::wc;
+WNDCLASSEX WindowSwitcher::wc_child;
+HBRUSH WindowSwitcher::background_brush = CreateSolidBrush(RGB(0, 0, 0));
+HBRUSH WindowSwitcher::on_mouse_brush = CreateSolidBrush(RGB(255, 255, 255));
+HBRUSH WindowSwitcher::selected_brush = CreateSolidBrush(RGB(255, 255, 255));
+HBRUSH WindowSwitcher::null_brush = (HBRUSH)GetStockObject(NULL_BRUSH);
+
 WindowSwitcher::WindowSwitcher(Monitor* monitor, std::vector<WindowSwitcher*>* window_switchers) {
     this->window_switchers = window_switchers;
     this->monitor = monitor;
@@ -133,7 +140,7 @@ LRESULT CALLBACK WindowSwitcher::window_proc_child(HWND handle_window, UINT mess
 
             RECT rect;
             GetClipBox(hdca, &rect);
-            FillRect(hdca, &rect, this->background_brush);
+            FillRect(hdca, &rect, WindowSwitcher::background_brush);
 
             if (this->mouse_on >= 0) {
                 int border_width = 4;
@@ -141,7 +148,7 @@ LRESULT CALLBACK WindowSwitcher::window_proc_child(HWND handle_window, UINT mess
                 rect.top = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.y - border_width;
                 rect.right = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.x + this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.width + border_width;
                 rect.bottom = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.y + this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.height + border_width;
-                FillRect(hdca, &rect, this->on_mouse_brush);
+                FillRect(hdca, &rect, WindowSwitcher::on_mouse_brush);
             }
             if (this->selected_window >= 0) {
                 {
@@ -150,7 +157,7 @@ LRESULT CALLBACK WindowSwitcher::window_proc_child(HWND handle_window, UINT mess
                     rect.top = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.y - border_width;
                     rect.right = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.x + this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.width + border_width;
                     rect.bottom = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.y + this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.height + border_width;
-                    FillRect(hdca, &rect, this->selected_brush);
+                    FillRect(hdca, &rect, WindowSwitcher::selected_brush);
                 }
                 {
                     HFONT font = CreateFont(16, 0, 0, 0, 300, false, false, false, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, L"Courier New");
@@ -189,31 +196,8 @@ LRESULT CALLBACK WindowSwitcher::window_proc_child(HWND handle_window, UINT mess
 }
 
 int WindowSwitcher::create_window() {
-    this->wc.cbSize = sizeof(WNDCLASSEX);
-    this->wc.style = 0;
-    this->wc.lpfnWndProc = this->window_proc_static;
-    this->wc.cbClsExtra = 0;
-    this->wc.cbWndExtra = 0;
-    this->wc.hInstance = GetModuleHandle(0);
-    this->wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-    this->wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    this->wc.hbrBackground = this->null_brush;
-    this->wc.lpszMenuName = NULL;
-    this->wc.lpszClassName = L"class";
-    this->wc.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
-
-    this->wc_child = this->wc;
-    this->wc_child.lpfnWndProc = this->window_proc_child_static;
-    this->wc_child.hbrBackground = this->background_brush;
-    this->wc_child.lpszClassName = L"class_child";
-
-    if (!RegisterClassEx(&this->wc) || !RegisterClassEx(&this->wc_child)) {
-        MessageBox(NULL, L"Window Registration Failed!", L"Error!", MB_ICONEXCLAMATION | MB_OK);
-        // return 0;
-    }
-
-    this->hwnd = CreateWindowEx(WS_EX_TOPMOST, this->wc.lpszClassName, L"Better Desktop Manager", WS_POPUP, this->monitor->get_x(), this->monitor->get_y(), this->monitor->get_width(), this->monitor->get_height(), NULL, NULL, this->wc.hInstance, NULL);
-    this->hwnd_child = CreateWindowEx(0, this->wc_child.lpszClassName, L"Better Desktop Manager", WS_CHILD | WS_VISIBLE, 0, 0, this->monitor->get_width(), this->monitor->get_height(), this->hwnd, NULL, NULL, NULL);
+    this->hwnd = CreateWindowEx(WS_EX_TOPMOST, WindowSwitcher::wc.lpszClassName, L"Better Desktop Manager", WS_POPUP, this->monitor->get_x(), this->monitor->get_y(), this->monitor->get_width(), this->monitor->get_height(), NULL, NULL, NULL, NULL);
+    this->hwnd_child = CreateWindowEx(0, WindowSwitcher::wc_child.lpszClassName, L"", WS_CHILD | WS_VISIBLE, 0, 0, this->monitor->get_width(), this->monitor->get_height(), this->hwnd, NULL, NULL, NULL);
 
     if (this->hwnd == NULL || this->hwnd_child == NULL) {
         DWORD x = GetLastError();
@@ -227,8 +211,6 @@ int WindowSwitcher::create_window() {
     SetWindowLong(this->hwnd_child, GWL_EXSTYLE, GetWindowLong(this->hwnd_child, GWL_EXSTYLE) | WS_EX_LAYERED);
     SetLayeredWindowAttributes(this->hwnd_child, RGB(48, 48, 48), 192, LWA_ALPHA);
 
-    // RegisterHotKey(this->hwnd, 1, MOD_NOREPEAT, 0x42);
-
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0) > 0) {
         TranslateMessage(&msg);
@@ -238,10 +220,8 @@ int WindowSwitcher::create_window() {
 }
 
 void WindowSwitcher::activate_window(HWND hwnd_window) {
-    if (IsIconic(hwnd_window))
-        ShowWindow(hwnd_window, SW_RESTORE);
-    else
-        SetForegroundWindow(hwnd_window);
+    if (IsIconic(hwnd_window)) ShowWindow(hwnd_window, SW_RESTORE);
+    SetForegroundWindow(hwnd_window);
 }
 
 void WindowSwitcher::show_window() {

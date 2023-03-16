@@ -7,8 +7,29 @@
 #include "window_switcher/window_switcher.h"
 
 int main() {
-    MonitorResolver::update_monitors_data();
+    WindowSwitcher::wc.cbSize = sizeof(WNDCLASSEX);
+    WindowSwitcher::wc.style = 0;
+    WindowSwitcher::wc.lpfnWndProc = WindowSwitcher::window_proc_static;
+    WindowSwitcher::wc.cbClsExtra = 0;
+    WindowSwitcher::wc.cbWndExtra = 0;
+    WindowSwitcher::wc.hInstance = NULL;
+    WindowSwitcher::wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    WindowSwitcher::wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    WindowSwitcher::wc.hbrBackground = WindowSwitcher::null_brush;
+    WindowSwitcher::wc.lpszMenuName = NULL;
+    WindowSwitcher::wc.lpszClassName = L"class";
+    WindowSwitcher::wc.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
 
+    WindowSwitcher::wc_child = WindowSwitcher::wc;
+    WindowSwitcher::wc_child.lpfnWndProc = WindowSwitcher::window_proc_child_static;
+    WindowSwitcher::wc_child.hbrBackground = WindowSwitcher::background_brush;
+    WindowSwitcher::wc_child.lpszClassName = L"class_child";
+    if (!RegisterClassEx(&WindowSwitcher::wc) || !RegisterClassEx(&WindowSwitcher::wc_child)) {
+        MessageBox(NULL, L"Window Registration Failed!", L"Error!", MB_ICONEXCLAMATION | MB_OK);
+        return 0;
+    }
+
+    MonitorResolver::update_monitors_data();
     std::vector<WindowSwitcher *> window_switchers;
 
     for (auto i : MonitorResolver::monitors) {
@@ -30,10 +51,6 @@ int main() {
                     SendMessage(i->hwnd, WM_HOTKEY, 0, 0);
                 }
         }
-    }
-
-    while (1) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     return 0;
 }
