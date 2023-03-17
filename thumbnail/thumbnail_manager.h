@@ -19,7 +19,7 @@ class ThumbnailManager {
     int thumbnail_height;
     std::vector<int> widths;
 
-    ThumbnailManager(WindowSwitcher *window_switcher);
+    ThumbnailManager(WindowSwitcher *window_switcher, int window_width, int window_height);
     bool check_if_new_thumbnails_added();
     void calculate_all_thumbnails_positions(double extra_ratio = 1.0);
     void update_all_windows_positions();

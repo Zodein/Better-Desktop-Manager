@@ -1,34 +1,70 @@
 {
     "version": "2.0.0",
     "tasks": [
+        // {
+        //     "type": "cppbuild",
+        //     "label": "C/C++: g++.exe build active file",
+        //     "command": "C:/msys64/mingw64/bin/g++.exe",
+        //     "args": [
+        //         "-DUNICODE",
+        //         "-g",
+        //         "${workspaceFolder}\\**.cc",
+        //         "${workspaceFolder}\\thumbnail\\**.cc",
+        //         "${workspaceFolder}\\window_switcher\\**.cc",
+        //         "${workspaceFolder}\\monitor_resolver\\**.cc",
+        //         "-ldwmapi",
+        //         "-lgdi32",
+        //         "-lgdiplus",
+        //         "-o",
+        //         "${workspaceFolder}\\app.exe"
+        //     ],
+        //     "options": {
+        //         "cwd": "C:/msys64/mingw64/bin"
+        //     },
+        //     "problemMatcher": [
+        //         "$gcc"
+        //     ],
+        //     "group": "build",
+        //     "detail": "compiler: C:/msys64/mingw64/bin/g++.exe"
+        // },
         {
             "type": "cppbuild",
-            "label": "C/C++: g++.exe build active file",
-            "command": "C:/msys64/mingw64/bin/g++.exe",
+            "label": "C/C++: cl.exe build active file",
+            "command": "cl.exe",
             "args": [
-                "-DUNICODE",
-                "-g",
+                "/Zi",
+                "/EHsc",
+                "/nologo",
+                "/W0",
+                "/IC:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.35.32215\\include",
+                "/IC:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.35.32215\\atlmfc\\include",
+                "/IC:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\VS\\include",
+                "/IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.22000.0\\ucrt",
+                "/IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.22000.0\\um",
+                "/IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.22000.0\\shared",
+                "/IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.22000.0\\winrt",
+                "/IC:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.22000.0\\cppwinrt",
+                "/D_UNICODE",
+                "/DUNICODE",
+                "/SUBSYSTEM:WINDOWS",
+                "/std:c++17",
                 "${workspaceFolder}\\**.cc",
                 "${workspaceFolder}\\thumbnail\\**.cc",
                 "${workspaceFolder}\\window_switcher\\**.cc",
                 "${workspaceFolder}\\monitor_resolver\\**.cc",
-                "-ldwmapi",
-                "-lgdi32",
-                "-lgdiplus",
-                "-o",
-                "${workspaceFolder}\\app.exe"
+                "/Fe${workspaceFolder}\\app.exe",
             ],
             "options": {
-                "cwd": "C:/msys64/mingw64/bin"
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": [
-                "$gcc"
+                "$msCompile"
             ],
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
-            "detail": "compiler: C:/msys64/mingw64/bin/g++.exe"
+            "detail": "compiler: cl.exe"
         }
     ]
 }

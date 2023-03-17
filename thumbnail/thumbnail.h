@@ -31,5 +31,6 @@ class Thumbnail {
     void register_thumbnail();
     void unregister_thumbnail();
     void update_window_position();
+    void repose_thumbnail(int x, int y);
 };
 #endif

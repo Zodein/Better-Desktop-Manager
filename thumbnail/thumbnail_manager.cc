@@ -7,8 +7,11 @@
 #include <numeric>
 #include <vector>
 
-ThumbnailManager::ThumbnailManager(WindowSwitcher *window_switcher) {
+ThumbnailManager::ThumbnailManager(WindowSwitcher *window_switcher, int window_width, int window_height) {
     this->w_s = window_switcher;
+    this->window_width = window_width;
+    this->window_height = window_height;
+
     this->thumbnails = *(new std::vector<Thumbnail *>());
     this->thumbnails_comparing = *(new std::vector<Thumbnail *>());
 }
@@ -37,74 +40,78 @@ void ThumbnailManager::collect_all_thumbnails() {
 }
 
 void ThumbnailManager::calculate_all_thumbnails_positions(double extra_ratio) {
-    this->window_width = w_s->monitor->get_width();
     int i = 0;
     int u = 0;
     this->widths.clear();
-    while (i < this->thumbnails.size()) {
-        if ((this->w_s->thumbnail_height * this->thumbnails[i]->ratio * extra_ratio) > this->window_width) {
-            this->widths.push_back(this->window_width);
-            i++;
-        } else {
-            int x = this->w_s->margin;
-            while (1) {
-                int add_to_x = (this->w_s->thumbnail_height * this->thumbnails[i]->ratio * extra_ratio) + this->w_s->margin;
-                if (x + add_to_x >= this->window_width) break;
-                x += add_to_x;
+    {  // precalculations
+        while (i < this->thumbnails.size()) {
+            if ((this->w_s->thumbnail_height * this->thumbnails[i]->ratio * extra_ratio) > this->window_width) {
+                this->widths.push_back(this->window_width);
                 i++;
-                if (i == this->thumbnails.size()) break;
+            } else {
+                int x = this->w_s->margin;
+                while (1) {
+                    int reference_x = (this->w_s->thumbnail_height + this->w_s->margin) * this->thumbnails[i]->ratio * extra_ratio;
+                    if (x + reference_x >= this->window_width) break;
+                    x += reference_x;
+                    i++;
+                    if (i == this->thumbnails.size()) break;
+                }
+                this->widths.push_back(x);
             }
-            this->widths.push_back(x);
         }
-    }
 
-    this->window_height = this->w_s->monitor->get_height();
-    if (((this->w_s->thumbnail_height + this->w_s->margin + this->w_s->title_height) * this->widths.size() * extra_ratio) > this->window_height) {
-        return this->calculate_all_thumbnails_positions(extra_ratio * (double)(0.9));
-        extra_ratio = (double)this->window_height / (double)((this->w_s->thumbnail_height + this->w_s->margin + this->w_s->title_height) * (this->widths.size()));
+        if (((this->w_s->thumbnail_height + this->w_s->margin + this->w_s->title_height) * this->widths.size() * extra_ratio) > this->window_height) {
+            return this->calculate_all_thumbnails_positions(extra_ratio * (double)(0.9));
+        }
     }
 
     i = 0;
-    int x = (this->window_width - this->widths[u]) / 2;
-    int add_to_y = 0;
+    int reference_x = (this->w_s->monitor->get_width() - this->widths[u]) / 2;
+    int reference_y = 0;
     {
-        add_to_y = this->w_s->monitor->get_height();
-        add_to_y -= (this->w_s->thumbnail_height + this->w_s->margin + this->w_s->title_height) * (this->widths.size()) * extra_ratio;
-        add_to_y /= 2;
+        reference_y = this->w_s->monitor->get_height();
+        reference_y -= (this->w_s->thumbnail_height + this->w_s->margin + this->w_s->title_height) * (this->widths.size()) * extra_ratio;
+        reference_y /= 2;
     }
     int y = 0;
     while (i < this->thumbnails.size()) {
-        if (x + (this->w_s->thumbnail_height * this->thumbnails[i]->ratio * extra_ratio) + this->w_s->margin > this->window_width && y != 0) {
+        if (reference_x + (this->w_s->thumbnail_height * this->thumbnails[i]->ratio * extra_ratio) + this->w_s->margin > ((this->w_s->monitor->get_width() / 2) + (this->window_width / 2)) && y != 0) {
             u++;
             y = 0;
-            x = (this->window_width - this->widths[u]) / 2;
+            reference_x = (this->w_s->monitor->get_width() - this->widths[u]) / 2;
             continue;
         }
         {
-            this->thumbnails[i]->thumbnail_position.x = x;
-            this->thumbnails[i]->thumbnail_position.y = (this->w_s->thumbnail_height + this->w_s->margin + this->w_s->title_height) * u * extra_ratio;
+            this->thumbnails[i]->thumbnail_position.x = 0;
+            this->thumbnails[i]->thumbnail_position.y = (this->w_s->thumbnail_height + this->w_s->margin) * u * extra_ratio + (this->w_s->title_height * u);
             this->thumbnails[i]->thumbnail_position.width = this->w_s->thumbnail_height * this->thumbnails[i]->ratio * extra_ratio;
             this->thumbnails[i]->thumbnail_position.height = this->w_s->thumbnail_height * extra_ratio;
         }
         {
             this->thumbnails[i]->thumbnail_position.x += this->w_s->margin;
+            this->thumbnails[i]->thumbnail_position.x += reference_x;
+
             this->thumbnails[i]->thumbnail_position.y += this->w_s->margin;
             this->thumbnails[i]->thumbnail_position.y += this->w_s->title_height;
-            this->thumbnails[i]->thumbnail_position.y += add_to_y;
+            this->thumbnails[i]->thumbnail_position.y += reference_y;
         }
 
-        if (this->thumbnails[i]->thumbnail_position.width >= this->window_width) {
+        if ((this->thumbnails[i]->window_position.width > this->window_width || this->thumbnails[i]->window_position.height > this->window_height) && this->thumbnails[i]->thumbnail_position.width >= this->window_width) {  // if thumbnail is too large to fit on screen
             double new_ratio = (double)(this->window_width - ((this->w_s->margin * 2))) / (double)this->thumbnails[i]->thumbnail_position.width;
             this->thumbnails[i]->thumbnail_position.width *= new_ratio;
             this->thumbnails[i]->thumbnail_position.height *= new_ratio;
-            this->thumbnails[i]->thumbnail_position.y += (this->w_s->thumbnail_height - (this->w_s->thumbnail_height * new_ratio)) / 2;
+            this->thumbnails[i]->thumbnail_position.y += ((this->w_s->thumbnail_height * extra_ratio) - (this->w_s->thumbnail_height * new_ratio)) / 2;
+        } else if (this->thumbnails[i]->thumbnail_position.width > this->thumbnails[i]->window_position.width && this->thumbnails[i]->thumbnail_position.height > this->thumbnails[i]->window_position.height) {  // if thumbnail is larger than its window
+            this->thumbnails[i]->thumbnail_position.width = this->thumbnails[i]->window_position.width;
+            this->thumbnails[i]->thumbnail_position.height = this->thumbnails[i]->window_position.height;
+            this->thumbnails[i]->thumbnail_position.y += ((this->w_s->thumbnail_height * extra_ratio) - this->thumbnails[i]->window_position.height) / 2;
         }
 
-        x += this->thumbnails[i]->thumbnail_position.width + this->w_s->margin;
+        reference_x += this->thumbnails[i]->thumbnail_position.width + this->w_s->margin;
         i++;
         y++;
     }
-    this->window_height = (this->w_s->thumbnail_height + this->w_s->margin + this->w_s->title_height) * (u + 1) + this->w_s->margin;
     return;
 }
 

@@ -28,6 +28,13 @@ void Thumbnail::register_thumbnail() {
     return;
 }
 
+void Thumbnail::repose_thumbnail(int x, int y) {
+    RECT dest = {x, y, x + this->thumbnail_position.width, y + this->thumbnail_position.height};
+    this->thumbnail_properties.rcDestination = dest;
+    DwmUpdateThumbnailProperties(thumbnail, &this->thumbnail_properties);
+    return;
+}
+
 void Thumbnail::unregister_thumbnail() {
     this->registered = false;
     DwmUnregisterThumbnail(this->thumbnail);
@@ -53,6 +60,8 @@ void Thumbnail::update_window_position() {
     } else {
         GetWindowRect(this->self_hwnd, &rect);
     }
+    this->window_position.x = rect.left;
+    this->window_position.y = rect.top;
     this->window_position.width = rect.right - rect.left;
     this->window_position.height = rect.bottom - rect.top;
     this->ratio = (double)this->window_position.width / (double)this->window_position.height;

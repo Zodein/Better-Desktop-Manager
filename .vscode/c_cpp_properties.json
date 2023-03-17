@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "intelliSenseMode": "msvc-x64",
+            "compilerPath": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.35.32215/bin/Hostx86/x86/cl.exe",
+            "name": "Win32",
+            "includePath": [
+                "${default}",
+                "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.35.32215\\include",
+                "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.35.32215\\atlmfc\\include",
+                "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\VS\\include",
+                "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.22000.0\\ucrt",
+                "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.22000.0\\um",
+                "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.22000.0\\shared",
+                "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.22000.0\\winrt",
+                "C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.22000.0\\cppwinrt"
+            ],
+            "windowsSdkVersion": "10.0.22000.0",
+            "cStandard": "c17"
+        }
+    ],
+    "version": 4
+}
