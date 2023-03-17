@@ -16,16 +16,29 @@ struct ComException {
     HRESULT result;
     ComException(HRESULT const value) : result(value) {}
 };
+
 void HR(HRESULT const result) {
     if (S_OK != result) {
         throw ComException(result);
     }
 }
+
+template <class T>
+void SafeRelease(T** ppT) {
+    if (*ppT) {
+        (*ppT)->Release();
+        *ppT = NULL;
+    }
+}
+
 WNDCLASSEX WindowSwitcher::wc;
-D2D1_COLOR_F const WindowSwitcher::background_color = D2D1::ColorF(0.2, 0.2, 0.2, 0.5f);
-D2D1_COLOR_F const WindowSwitcher::on_mouse_color = D2D1::ColorF(0.4, 0.4, 0.4, 1.0f);
-D2D1_COLOR_F const WindowSwitcher::selected_color = D2D1::ColorF(0.8, 0.8, 0.8, 1.0f);
-D2D1_COLOR_F const WindowSwitcher::title_bg_color = D2D1::ColorF(0.2, 0.2, 0.2, 0.8f);
+D2D1_COLOR_F const WindowSwitcher::background_color = D2D1::ColorF(0.0, 0.0, 0.0, 0.5f);
+D2D1_COLOR_F const WindowSwitcher::on_mouse_color = D2D1::ColorF(0.5, 0.5, 0.5, 1.0f);
+D2D1_COLOR_F const WindowSwitcher::selected_color = D2D1::ColorF(1.0, 1.0, 1.0, 1.0f);
+D2D1_COLOR_F const WindowSwitcher::title_bg_color = D2D1::ColorF(0.05, 0.05, 0.05, 0.8f);
+
+auto user32Lib = LoadLibrary(L"user32.dll");
+auto lSetWindowCompositionAttribute = (SetWindowCompositionAttribute)GetProcAddress(user32Lib, "SetWindowCompositionAttribute");
 
 WindowSwitcher::WindowSwitcher(Monitor* monitor, std::vector<WindowSwitcher*>* window_switchers) {
     this->window_switchers = window_switchers;
@@ -33,141 +46,8 @@ WindowSwitcher::WindowSwitcher(Monitor* monitor, std::vector<WindowSwitcher*>* w
     this->thumbnail_manager = new ThumbnailManager(this, this->monitor->get_width() - 128, this->monitor->get_height() - 128);
 }
 
-LRESULT CALLBACK WindowSwitcher::window_proc_static(HWND handle_window, UINT message, WPARAM wParam, LPARAM lParam) {
-    WindowSwitcher* window_switcher = reinterpret_cast<WindowSwitcher*>(GetWindowLongPtr(handle_window, GWLP_USERDATA));
-    if (window_switcher) return window_switcher->window_proc(handle_window, message, wParam, lParam);
-    return DefWindowProc(handle_window, message, wParam, lParam);
-}
-
-LRESULT CALLBACK WindowSwitcher::window_proc(HWND handle_window, UINT message, WPARAM wParam, LPARAM lParam) {
-    switch (message) {
-        case WM_MOUSEWHEEL: {
-            if (GET_WHEEL_DELTA_WPARAM(wParam) < 0 && this->selected_window + 1 < this->thumbnail_manager->thumbnails.size())
-                this->selected_window++;
-            else if (GET_WHEEL_DELTA_WPARAM(wParam) > 0 && this->selected_window > 0)
-                this->selected_window--;
-            else
-                break;
-            InvalidateRect(this->hwnd, NULL, FALSE);
-            break;
-        }
-        case WM_LBUTTONDOWN: {
-            if (this->mouse_on != -1) {
-                this->activate_window(this->thumbnail_manager->thumbnails[this->mouse_on]->self_hwnd);
-                this->hide_window();
-                std::cout << "clicked\n";
-            }
-            break;
-        }
-        case WM_MBUTTONDOWN: {
-            if (this->mouse_on != -1) {
-                SendMessage(this->thumbnail_manager->thumbnails[this->mouse_on]->self_hwnd, WM_CLOSE, 0, 0);
-                std::cout << "clicked\n";
-            }
-            break;
-        }
-        case WM_HOTKEY: {
-            if (!IsWindowVisible(this->hwnd)) {
-                this->show_window();
-                this->selected_window = this->thumbnail_manager->thumbnails.size() > 1;
-                std::thread t1([=]() {
-                    int last_checked = 0;
-                    while (GetAsyncKeyState(0x42)) {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                        if (!IsWindowVisible(this->hwnd)) return;
-                        if (last_checked < GetTickCount()) {
-                            this->thumbnail_manager->update_thumbnails_if_needed();
-                            last_checked = GetTickCount() + 100;
-                        }
-                    }
-                    if (IsWindowVisible(this->hwnd)) {
-                        POINT p;
-                        if (GetCursorPos(&p)) {
-                            if (p.x > this->monitor->get_x()) {
-                                if (p.x < this->monitor->get_x2()) {
-                                    if (p.y > this->monitor->get_y()) {
-                                        if (p.y < this->monitor->get_y2()) {
-                                            this->activate_window(this->thumbnail_manager->thumbnails[this->selected_window]->self_hwnd);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        this->hide_window();
-                    }
-                    return;
-                });
-                t1.detach();
-                std::cout << "HOTKEY\n";
-            }
-            break;
-        }
-        case WM_PAINT: {
-            dc->BeginDraw();
-            dc->Clear();
-            dc->FillRectangle(D2D1::RectF(0, 0, monitor->get_width(), monitor->get_height()), this->background_brush.Get());
-            if (this->mouse_on >= 0) {
-                int border_width = 4;
-                rect.left = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.x - border_width;
-                rect.top = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.y - border_width - 32;
-                rect.right = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.x + this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.width + border_width;
-                rect.bottom = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.y + this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.height + border_width;
-                dc->FillRectangle(D2D1::RectF(rect.left, rect.top, rect.right, rect.bottom), this->on_mouse_brush.Get());
-            }
-            if (this->selected_window >= 0) {
-                {
-                    int border_width = 2;
-                    rect.left = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.x - border_width;
-                    rect.top = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.y - border_width - 32;
-                    rect.right = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.x + this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.width + border_width;
-                    rect.bottom = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.y + this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.height + border_width;
-                    dc->FillRectangle(D2D1::RectF(rect.left, rect.top, rect.right, rect.bottom), this->selected_brush.Get());
-                }
-                {
-                    for (auto i : this->thumbnail_manager->thumbnails) {
-                        int len = GetWindowTextLength(i->self_hwnd) + 1;
-                        std::wstring s;
-                        s.reserve(len);
-                        GetWindowText(i->self_hwnd, LPWSTR(s.c_str()), len);
-                        rect.left = i->thumbnail_position.x;
-                        rect.top = i->thumbnail_position.y - 32;
-                        rect.right = i->thumbnail_position.x + i->thumbnail_position.width;
-                        rect.bottom = i->thumbnail_position.y;
-                        dc->FillRectangle(D2D1::RectF(rect.left, rect.top, rect.right, rect.bottom), this->title_bg_brush.Get());
-                        dc->DrawText(s.c_str(), len, writeTextFormat, D2D1::RectF(rect.left, rect.top, rect.right, rect.bottom), this->selected_brush.Get());
-                    }
-                }
-            }
-
-            HR(dc->EndDraw());
-            HR(swapChain->Present(1, 0));
-            ValidateRect(hwnd, NULL);
-            std::cout << "paint\n";
-            break;
-        }
-        case WM_ERASEBKGND: {
-            std::cout << "WM_ERASEBKGND\n";
-            break;
-        }
-        case WM_CLOSE:
-            DestroyWindow(handle_window);
-            break;
-        case WM_DESTROY:
-            PostQuitMessage(0);
-            break;
-        case WM_MOUSEMOVE: {
-            this->on_mouse_message(lParam);
-            // std::cout << "mousemove on parent\n";
-            break;
-        }
-        default:
-            return DefWindowProc(handle_window, message, wParam, lParam);
-    }
-    return 0;
-}
-
 int WindowSwitcher::create_window() {
-    this->hwnd = CreateWindowEx(WS_EX_TOPMOST | WS_EX_NOREDIRECTIONBITMAP, WindowSwitcher::wc.lpszClassName, L"Better Desktop Manager", WS_POPUP, this->monitor->get_x(), this->monitor->get_y(), this->monitor->get_width(), this->monitor->get_height(), NULL, NULL, NULL, NULL);
+    this->hwnd = CreateWindowEx(WS_EX_TOPMOST, WindowSwitcher::wc.lpszClassName, L"Better Desktop Manager", WS_POPUP, this->monitor->get_x(), this->monitor->get_y(), this->monitor->get_width(), this->monitor->get_height(), NULL, NULL, NULL, NULL);
 
     if (this->hwnd == NULL) {
         DWORD x = GetLastError();
@@ -176,9 +56,7 @@ int WindowSwitcher::create_window() {
     }
 
     HR(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0, D3D11_SDK_VERSION, &direct3dDevice, nullptr, nullptr));
-
     HR(direct3dDevice.As(&dxgiDevice));
-
     HR(CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, __uuidof(dxFactory), reinterpret_cast<void**>(dxFactory.GetAddressOf())));
     DXGI_SWAP_CHAIN_DESC1 description = {};
     description.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -192,14 +70,9 @@ int WindowSwitcher::create_window() {
     HR(dxFactory->CreateSwapChainForComposition(dxgiDevice.Get(), &description, nullptr, swapChain.GetAddressOf()));
     D2D1_FACTORY_OPTIONS const options = {D2D1_DEBUG_LEVEL_INFORMATION};
     HR(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, options, d2Factory.GetAddressOf()));
-    // Create the Direct2D device that links back to the Direct3D device
     HR(d2Factory->CreateDevice(dxgiDevice.Get(), d2Device.GetAddressOf()));
-    // Create the Direct2D device context that is the actual render target
-    // and exposes drawing commands
     HR(d2Device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, dc.GetAddressOf()));
-    // Retrieve the swap chain's back buffer
     HR(swapChain->GetBuffer(0, __uuidof(surface), reinterpret_cast<void**>(surface.GetAddressOf())));
-    // Create a Direct2D bitmap that points to the swap chain surface
     D2D1_BITMAP_PROPERTIES1 properties = {};
     properties.pixelFormat.alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED;
     properties.pixelFormat.format = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -208,17 +81,6 @@ int WindowSwitcher::create_window() {
     HR(dc->CreateBitmapFromDxgiSurface(surface.Get(), properties, bitmap.GetAddressOf()));
     // Point the device context to the bitmap for rendering
     dc->SetTarget(bitmap.Get());
-    // Draw something
-    // dc->BeginDraw();
-    // dc->Clear();
-    // ComPtr<ID2D1SolidColorBrush> brush;
-    // D2D1_COLOR_F const brushColor = D2D1::ColorF(0.1f, 0.1f, 0.1f, 0.75f);
-    // HR(dc->CreateSolidColorBrush(brushColor, brush.GetAddressOf()));
-    // D2D1_RECT_F const recta = D2D1::RectF(0, 0, monitor->get_width(), monitor->get_height());
-    // dc->FillRectangle(recta, brush.Get());
-    // HR(dc->EndDraw());
-    // // Make the swap chain available to the composition engine
-    // HR(swapChain->Present(1, 0));
     HR(DCompositionCreateDevice(dxgiDevice.Get(), __uuidof(dcompDevice), reinterpret_cast<void**>(dcompDevice.GetAddressOf())));
     HR(dcompDevice->CreateTargetForHwnd(hwnd, true, target.GetAddressOf()));
     HR(dcompDevice->CreateVisual(visual.GetAddressOf()));
@@ -230,12 +92,22 @@ int WindowSwitcher::create_window() {
     HR(dc->CreateSolidColorBrush(WindowSwitcher::on_mouse_color, this->on_mouse_brush.GetAddressOf()));
     HR(dc->CreateSolidColorBrush(WindowSwitcher::selected_color, this->selected_brush.GetAddressOf()));
     HR(dc->CreateSolidColorBrush(WindowSwitcher::title_bg_color, this->title_bg_brush.GetAddressOf()));
+
     DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(writeFactory), reinterpret_cast<IUnknown**>(&writeFactory));
-    writeFactory->CreateTextFormat(L"Courier New", NULL, DWRITE_FONT_WEIGHT_REGULAR, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 16.0f, L"en-us", &writeTextFormat);
+    writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_REGULAR, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 14.0f, L"en-us", &writeTextFormat);
     writeTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
     writeTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
 
+    if (user32Lib) {
+        AccentPolicy accent;
+        WINDOWCOMPOSITIONATTRIBDATA composition_data;
+        composition_data.pvData = &accent;
+        composition_data.cbData = sizeof(accent);
+        lSetWindowCompositionAttribute(hwnd, &composition_data);
+    }
+
     SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)this);
+    InvalidateRect(this->hwnd, NULL, FALSE);
 
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0) > 0) {
@@ -252,6 +124,7 @@ void WindowSwitcher::activate_window(HWND hwnd_window) {
 
 void WindowSwitcher::show_window() {
     this->thumbnail_manager->update_thumbnails_if_needed();
+    this->selected_window = this->thumbnail_manager->thumbnails.size() > 1;
     SetWindowPos(this->hwnd, HWND_TOPMOST, this->monitor->get_x(), this->monitor->get_y(), this->monitor->get_width(), this->monitor->get_height(), SWP_SHOWWINDOW);
     return;
 }
@@ -267,9 +140,14 @@ void WindowSwitcher::resize_window() {
     return;
 }
 
-void WindowSwitcher::on_mouse_message(LPARAM lParam) {
-    int x = GET_X_LPARAM(lParam);
-    int y = GET_Y_LPARAM(lParam);
+void WindowSwitcher::on_mousemove_event(LPARAM l_param) {
+    int x = GET_X_LPARAM(l_param);
+    int y = GET_Y_LPARAM(l_param);
+    if (this->mouse_down && this->thumbnail_manager->thumbnails.size() >= this->mouse_on) {
+        this->thumbnail_manager->thumbnails[mouse_on]->repose_thumbnail(x + this->catched_thumbnail_ref_coord[0], y + this->catched_thumbnail_ref_coord[1]);
+        InvalidateRect(this->hwnd, NULL, FALSE);
+        return;
+    }
     for (auto i : this->thumbnail_manager->thumbnails) {
         if (x > i->thumbnail_position.x) {
             if (y > i->thumbnail_position.y) {
@@ -290,4 +168,262 @@ void WindowSwitcher::on_mouse_message(LPARAM lParam) {
         InvalidateRect(this->hwnd, NULL, FALSE);
     }
     return;
+}
+
+void WindowSwitcher::on_hotkey_event() {
+    if (!IsWindowVisible(this->hwnd)) {
+        this->show_window();
+        std::thread t1([=]() {
+            int last_checked = 0;
+            while (GetAsyncKeyState(0x42)) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                if (!IsWindowVisible(this->hwnd)) return;
+                if (last_checked < GetTickCount()) {
+                    this->thumbnail_manager->update_thumbnails_if_needed();
+                    last_checked = GetTickCount() + 100;
+                }
+            }
+            if (IsWindowVisible(this->hwnd)) {
+                POINT p;
+                if (GetCursorPos(&p)) {
+                    if (p.x > this->monitor->get_x()) {
+                        if (p.x < this->monitor->get_x2()) {
+                            if (p.y > this->monitor->get_y()) {
+                                if (p.y < this->monitor->get_y2()) {
+                                    this->activate_window(this->thumbnail_manager->thumbnails[this->selected_window]->self_hwnd);
+                                }
+                            }
+                        }
+                    }
+                }
+                this->hide_window();
+            }
+            return;
+        });
+        t1.detach();
+        std::cout << "HOTKEY\n";
+    }
+}
+
+void WindowSwitcher::on_mousewheel_event(WPARAM w_param, LPARAM l_param) {
+    if (GET_WHEEL_DELTA_WPARAM(w_param) < 0 && this->selected_window + 1 < this->thumbnail_manager->thumbnails.size())
+        this->selected_window++;
+    else if (GET_WHEEL_DELTA_WPARAM(w_param) > 0 && this->selected_window > 0)
+        this->selected_window--;
+    else
+        return;
+    InvalidateRect(this->hwnd, NULL, FALSE);
+    return;
+}
+
+void WindowSwitcher::on_mouseldown_event(WPARAM w_param, LPARAM l_param) {
+    if (this->mouse_on != -1) {
+        this->mouse_down_on[0] = GET_X_LPARAM(l_param);
+        this->mouse_down_on[1] = GET_Y_LPARAM(l_param);
+        this->mouse_down = true;
+        this->catched_thumbnail_ref_coord[0] = this->thumbnail_manager->thumbnails[mouse_on]->thumbnail_position.x - GET_X_LPARAM(l_param);
+        this->catched_thumbnail_ref_coord[1] = this->thumbnail_manager->thumbnails[mouse_on]->thumbnail_position.y - GET_Y_LPARAM(l_param);
+        this->thumbnail_manager->thumbnails[mouse_on]->unregister_thumbnail();  // update z-order of the thumbnail
+        this->thumbnail_manager->thumbnails[mouse_on]->register_thumbnail();
+        // this->activate_window(this->thumbnail_manager->thumbnails[this->mouse_on]->self_hwnd);
+        // this->hide_window();
+        std::cout << "WM_LBUTTONDOWN\n";
+    }
+    return;
+}
+
+void WindowSwitcher::on_mouselup_event(WPARAM w_param, LPARAM l_param) {
+    this->mouse_down_on[0] -= GET_X_LPARAM(l_param);
+    this->mouse_down_on[1] -= GET_Y_LPARAM(l_param);
+    if (this->mouse_on != -1) {
+        if (this->mouse_down_on[0] < 64 && this->mouse_down_on[0] > -64) {
+            if (this->mouse_down_on[1] < 64 && this->mouse_down_on[1] > -64) {
+                this->activate_window(this->thumbnail_manager->thumbnails[this->mouse_on]->self_hwnd);
+                this->hide_window();
+                this->mouse_down = false;
+                return;
+            }
+        }
+        this->thumbnail_manager->update_thumbnails_if_needed(true);
+        InvalidateRect(this->hwnd, NULL, FALSE);
+    }
+    this->mouse_down = false;
+    std::cout << "WM_LBUTTONUP\n";
+    return;
+}
+
+void WindowSwitcher::on_print_event() {
+    dc->BeginDraw();
+    dc->Clear();
+
+    dc->FillRectangle(D2D1::RectF(0, 0, monitor->get_width(), monitor->get_height()), this->background_brush.Get());
+    for (auto i : this->thumbnail_manager->thumbnails) {
+        int border_width = 1;
+        rect.left = i->thumbnail_position.x - border_width;
+        rect.top = i->thumbnail_position.y - border_width - this->title_height;
+        rect.right = i->thumbnail_position.x + i->thumbnail_position.width + border_width;
+        rect.bottom = i->thumbnail_position.y + i->thumbnail_position.height + border_width;
+        dc->FillGeometry(this->CreateRoundRect(rect.left, rect.top, rect.right, rect.bottom, 16, 16, 0, 0), this->on_mouse_brush.Get());
+    }
+
+    if (this->selected_window >= 0) {
+        int border_width = this->mouse_on == this->selected_window ? 6 : 2;
+        rect.left = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.x - border_width;
+        rect.top = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.y - border_width - this->title_height;
+        rect.right = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.x + this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.width + border_width;
+        rect.bottom = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.y + this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.height + border_width;
+        dc->FillGeometry(this->CreateRoundRect(rect.left, rect.top, rect.right, rect.bottom, 16, 16, 0, 0), this->selected_brush.Get());
+    }
+
+    if (this->mouse_on >= 0) {
+        int border_width = 4;
+        rect.left = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.x - border_width;
+        rect.top = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.y - border_width - this->title_height;
+        rect.right = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.x + this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.width + border_width;
+        rect.bottom = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.y + this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.height + border_width;
+        dc->FillGeometry(this->CreateRoundRect(rect.left, rect.top, rect.right, rect.bottom, 16, 16, 0, 0), this->on_mouse_brush.Get());
+    }
+
+    for (auto i : this->thumbnail_manager->thumbnails) {
+        std::wstring s;
+        int len = GetWindowTextLength(i->self_hwnd) + 1;
+        len = len < 100 ? len : 100;
+        s.resize(len);
+        GetWindowText(i->self_hwnd, LPWSTR(s.c_str()), len);
+        if (len == 100) {
+            s += +L"...";
+            len = 103;
+        }
+        rect.left = i->thumbnail_position.x;
+        rect.top = i->thumbnail_position.y - this->title_height;
+        rect.right = i->thumbnail_position.x + i->thumbnail_position.width;
+        rect.bottom = i->thumbnail_position.y;
+        dc->FillGeometry(this->CreateRoundRect(rect.left, rect.top, rect.right, rect.bottom, 16, 16, 0, 0), this->title_bg_brush.Get());
+        dc->DrawText(s.c_str(), len, writeTextFormat, D2D1::RectF(rect.left, rect.top, rect.right, rect.bottom), this->selected_brush.Get());
+    }
+
+    HR(dc->EndDraw());
+    HR(swapChain->Present(1, 0));
+    ValidateRect(hwnd, NULL);
+}
+
+ID2D1PathGeometry* WindowSwitcher::CreateRoundRect(int x, int y, int x2, int y2, int leftTop, int rightTop, int rightBottom, int leftBottom) {
+    ID2D1GeometrySink* sink = nullptr;
+    ID2D1PathGeometry* path = nullptr;
+
+    d2Factory->CreatePathGeometry(&path);
+    path->Open(&sink);
+
+    D2D1_POINT_2F p[2];
+
+    p[0].x = x + leftTop;
+    p[0].y = y;
+    sink->BeginFigure(p[0], D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_FILLED);
+    p[1].x = x2 - rightTop;
+    p[1].y = y;
+    sink->AddLines(p, 2);
+
+    p[0].x = x2;
+    p[0].y = y + rightTop;
+
+    if (rightTop) {
+        D2D1_POINT_2F p2 = D2D1::Matrix3x2F::Rotation(0, p[1]).TransformPoint(p[0]);
+        sink->AddArc(D2D1::ArcSegment(p2, D2D1::SizeF(rightTop, rightTop), 0, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL));
+    }
+
+    p[1].x = x2;
+    p[1].y = y2 - rightBottom;
+    sink->AddLines(p, 2);
+
+    p[0].x = x2 - rightBottom;
+    p[0].y = y2;
+
+    if (rightBottom) {
+        D2D1_POINT_2F p2 = D2D1::Matrix3x2F::Rotation(0, p[1]).TransformPoint(p[0]);
+        sink->AddArc(D2D1::ArcSegment(p2, D2D1::SizeF(rightBottom, rightBottom), 0, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL));
+    }
+
+    p[1].x = x + leftBottom;
+    p[1].y = y2;
+    sink->AddLines(p, 2);
+
+    p[0].x = x;
+    p[0].y = y2 - leftBottom;
+    if (leftBottom) {
+        D2D1_POINT_2F p2 = D2D1::Matrix3x2F::Rotation(0, p[1]).TransformPoint(p[0]);
+        sink->AddArc(D2D1::ArcSegment(p2, D2D1::SizeF(leftBottom, leftBottom), 0, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL));
+    }
+
+    p[1].x = x;
+    p[1].y = y + leftTop;
+    sink->AddLines(p, 2);
+    p[0].x = x + leftTop;
+    p[0].y = y;
+    if (leftTop) {
+        D2D1_POINT_2F p2 = D2D1::Matrix3x2F::Rotation(0, p[1]).TransformPoint(p[0]);
+        sink->AddArc(D2D1::ArcSegment(p2, D2D1::SizeF(leftTop, leftTop), 0, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL));
+    }
+
+    sink->EndFigure(D2D1_FIGURE_END::D2D1_FIGURE_END_CLOSED);
+    sink->Close();
+    SafeRelease(&sink);
+
+    return path;
+}
+
+LRESULT CALLBACK WindowSwitcher::window_proc_static(HWND handle_window, UINT message, WPARAM w_param, LPARAM l_param) {
+    WindowSwitcher* window_switcher = reinterpret_cast<WindowSwitcher*>(GetWindowLongPtr(handle_window, GWLP_USERDATA));
+    if (window_switcher) return window_switcher->window_proc(handle_window, message, w_param, l_param);
+    return DefWindowProc(handle_window, message, w_param, l_param);
+}
+
+LRESULT CALLBACK WindowSwitcher::window_proc(HWND handle_window, UINT message, WPARAM w_param, LPARAM l_param) {
+    switch (message) {
+        case WM_MOUSEWHEEL: {
+            this->on_mousewheel_event(w_param, l_param);
+            break;
+        }
+        case WM_LBUTTONDOWN: {
+            this->on_mouseldown_event(w_param, l_param);
+            break;
+        }
+        case WM_LBUTTONUP: {
+            this->on_mouselup_event(w_param, l_param);
+            break;
+        }
+        case WM_MBUTTONDOWN: {
+            if (this->mouse_on != -1) {
+                SendMessage(this->thumbnail_manager->thumbnails[this->mouse_on]->self_hwnd, WM_CLOSE, 0, 0);
+                std::cout << "clicked\n";
+            }
+            break;
+        }
+        case WM_HOTKEY: {
+            this->on_hotkey_event();
+            break;
+        }
+        case WM_PAINT: {
+            this->on_print_event();
+            std::cout << "WM_PAINT\n";
+            break;
+        }
+        case WM_ERASEBKGND: {
+            this->on_print_event();
+            std::cout << "WM_ERASEBKGND\n";
+            break;
+        }
+        case WM_CLOSE:
+            DestroyWindow(handle_window);
+            break;
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            break;
+        case WM_MOUSEMOVE: {
+            this->on_mousemove_event(l_param);
+            break;
+        }
+        default:
+            return DefWindowProc(handle_window, message, w_param, l_param);
+    }
+    return 0;
 }

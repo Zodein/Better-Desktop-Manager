@@ -17,7 +17,7 @@ ThumbnailManager::ThumbnailManager(WindowSwitcher *window_switcher, int window_w
 }
 
 bool ThumbnailManager::check_if_new_thumbnails_added() {
-    std::cout << "checking thumbnails\n";
+    // std::cout << "checking thumbnails\n";
     this->destroy_all_comparing_thumbnails();
     EnumWindows(ThumbnailManager::comparing_collector_callback, reinterpret_cast<LPARAM>(w_s));
     if (this->thumbnails.size() != this->thumbnails_comparing.size()) {
@@ -93,7 +93,6 @@ void ThumbnailManager::calculate_all_thumbnails_positions(double extra_ratio) {
             this->thumbnails[i]->thumbnail_position.x += reference_x;
 
             this->thumbnails[i]->thumbnail_position.y += this->w_s->margin;
-            this->thumbnails[i]->thumbnail_position.y += this->w_s->title_height;
             this->thumbnails[i]->thumbnail_position.y += reference_y;
         }
 
@@ -107,6 +106,7 @@ void ThumbnailManager::calculate_all_thumbnails_positions(double extra_ratio) {
             this->thumbnails[i]->thumbnail_position.height = this->thumbnails[i]->window_position.height;
             this->thumbnails[i]->thumbnail_position.y += ((this->w_s->thumbnail_height * extra_ratio) - this->thumbnails[i]->window_position.height) / 2;
         }
+        this->thumbnails[i]->thumbnail_position.y += this->w_s->title_height;
 
         reference_x += this->thumbnails[i]->thumbnail_position.width + this->w_s->margin;
         i++;
@@ -146,8 +146,8 @@ void ThumbnailManager::destroy_all_comparing_thumbnails() {
     return;
 }
 
-void ThumbnailManager::update_thumbnails_if_needed() {
-    if (this->check_if_new_thumbnails_added()) {
+void ThumbnailManager::update_thumbnails_if_needed(bool force) {
+    if (this->check_if_new_thumbnails_added() || force) {
         this->collect_all_thumbnails();
         this->update_all_windows_positions();
         this->calculate_all_thumbnails_positions();

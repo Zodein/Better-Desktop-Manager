@@ -7,6 +7,7 @@
 #pragma comment(lib, "d2d1")
 #pragma comment(lib, "dcomp")
 #pragma comment(lib, "dwrite")
+#pragma comment(lib, "dxguid")
 
 #include <chrono>
 #include <iostream>
@@ -18,6 +19,7 @@
 #include "window_switcher/window_switcher.h"
 
 int main() {
+
     WindowSwitcher::wc.cbSize = sizeof(WNDCLASSEX);
     WindowSwitcher::wc.style = 0;
     WindowSwitcher::wc.lpfnWndProc = WindowSwitcher::window_proc_static;

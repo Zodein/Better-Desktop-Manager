@@ -15,6 +15,7 @@
         //     "miDebuggerPath": "C:/msys64/mingw64/bin/gdb.exe",
         // },
         {
+            "preLaunchTask": "C/C++: cl.exe build",
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
@@ -23,7 +24,7 @@
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
         },
     ]
 }

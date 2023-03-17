@@ -15,7 +15,6 @@ class ThumbnailManager {
     WindowSwitcher *w_s;
     int window_width;
     int window_height;
-    int margin;
     int thumbnail_height;
     std::vector<int> widths;
 
@@ -27,7 +26,7 @@ class ThumbnailManager {
     void register_all_thumbnails();
     void destroy_all_thumbnails();
     void destroy_all_comparing_thumbnails();
-    void update_thumbnails_if_needed();
+    void update_thumbnails_if_needed(bool force = false);
     static BOOL CALLBACK collector_callback(HWND hwnd, LPARAM lParam);
     static BOOL CALLBACK comparing_collector_callback(HWND hwnd, LPARAM lParam);
 };

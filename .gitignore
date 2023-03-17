@@ -3,6 +3,8 @@ TODO
 *.pdb
 *.obj
 *.ilk
+*.idb
+*.dmp
 
 # Prerequisites
 *.d

@@ -31,6 +31,8 @@ void Thumbnail::register_thumbnail() {
 void Thumbnail::repose_thumbnail(int x, int y) {
     RECT dest = {x, y, x + this->thumbnail_position.width, y + this->thumbnail_position.height};
     this->thumbnail_properties.rcDestination = dest;
+    this->thumbnail_position.x = x;
+    this->thumbnail_position.y = y;
     DwmUpdateThumbnailProperties(thumbnail, &this->thumbnail_properties);
     return;
 }
