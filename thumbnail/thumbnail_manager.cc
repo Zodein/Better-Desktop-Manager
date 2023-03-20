@@ -11,21 +11,20 @@ ThumbnailManager::ThumbnailManager(WindowSwitcher *window_switcher, int window_w
     this->w_s = window_switcher;
     this->window_width = window_width;
     this->window_height = window_height;
-    this->vt_height = (this->w_s->monitor->get_height() * 0.25) - (this->w_s->virtual_desktop_vertical_margin * 2);
 
-    this->thumbnails = *(new std::vector<Thumbnail *>());
-    this->thumbnails_comparing = *(new std::vector<Thumbnail *>());
+    this->thumbnails = *new std::vector<Thumbnail *>();
+    this->thumbnails_comparing = *new std::vector<Thumbnail *>();
 }
 
 bool ThumbnailManager::check_if_new_thumbnails_added() {
-    // std::cout << "checking thumbnails\n";
     this->destroy_all_comparing_thumbnails();
+
     EnumWindows(ThumbnailManager::comparing_collector_callback, reinterpret_cast<LPARAM>(w_s));
     if (this->thumbnails.size() != this->thumbnails_comparing.size()) {
         std::cout << "sizes not equal\n";
         return true;
     }
-    for (int i = 0; i < this->thumbnails.size(); i++) {
+    for (int i = 0; i < this->thumbnails.size() && i < this->thumbnails_comparing.size(); i++) {
         if (this->thumbnails[i]->self_hwnd != this->thumbnails_comparing[i]->self_hwnd) {
             std::cout << "hwnds not equal\n";
             return true;
@@ -37,7 +36,7 @@ bool ThumbnailManager::check_if_new_thumbnails_added() {
 void ThumbnailManager::collect_all_thumbnails() {
     this->destroy_all_thumbnails();
     this->clear_virtualdesktop_windowcount();
-    this->update_virtualdesktops_if_needed();
+    this->update_virtualdesktops_if_needed(true);
     EnumWindows(ThumbnailManager::collector_callback, reinterpret_cast<LPARAM>(w_s));
     return;
 }
@@ -94,6 +93,7 @@ void ThumbnailManager::calculate_all_virtualdesktops_positions() {
 }
 
 void ThumbnailManager::calculate_all_thumbnails_positions(double extra_ratio) {
+    this->update_all_windows_positions();
     int i = 0;
     int u = 0;
     this->widths.clear();
@@ -172,22 +172,24 @@ void ThumbnailManager::calculate_all_thumbnails_positions(double extra_ratio) {
 }
 
 void ThumbnailManager::update_all_thumbnails_positions() {
-    for (Thumbnail *i : this->thumbnails) {
+    for (auto i : this->thumbnails) {
         i->update_thumbnail_position();
     }
+    return;
 }
 
 void ThumbnailManager::update_all_windows_positions() {
-    for (Thumbnail *i : this->thumbnails) {
+    for (auto i : this->thumbnails) {
         i->update_window_position();
     }
     return;
 }
 
 void ThumbnailManager::register_all_thumbnails() {
-    for (Thumbnail *i : this->thumbnails) {
+    for (auto i : this->thumbnails) {
         i->register_thumbnail();
     }
+
     return;
 }
 
@@ -202,6 +204,7 @@ void ThumbnailManager::destroy_all_thumbnails() {
 
 void ThumbnailManager::destroy_all_comparing_thumbnails() {
     for (auto i : this->thumbnails_comparing) {
+        i->unregister_thumbnail();
         delete i;
     }
     this->thumbnails_comparing.clear();
@@ -209,17 +212,23 @@ void ThumbnailManager::destroy_all_comparing_thumbnails() {
 }
 
 bool ThumbnailManager::update_thumbnails_if_needed(bool force) {
-    if (force || this->check_if_new_thumbnails_added()) {
-        this->collect_all_thumbnails();
-        if (this->thumbnails.size() < 1) {
-            return false;
+    std::lock_guard<std::mutex> lock1(this->w_s->thumbnail_destroyer_lock);
+    std::lock_guard<std::mutex> lock(this->w_s->render_lock);
+    std::thread t1([=]() {  // using thread because virtual desktop api does not allow winproc thread
+        if (force || this->check_if_new_thumbnails_added()) {
+            this->collect_all_thumbnails();
+            if (this->thumbnails.size() < 1) {
+                InvalidateRect(this->w_s->hwnd, NULL, FALSE);
+                return;
+            }
+            this->update_all_windows_positions();
+            this->calculate_all_thumbnails_positions();
+            this->register_all_thumbnails();
+            InvalidateRect(this->w_s->hwnd, NULL, FALSE);
+            return;
         }
-        this->update_all_windows_positions();
-        this->calculate_all_thumbnails_positions();
-        this->register_all_thumbnails();
-        InvalidateRect(this->w_s->hwnd, NULL, FALSE);
-        return true;
-    }
+    });
+    t1.join();
     return false;
 }
 

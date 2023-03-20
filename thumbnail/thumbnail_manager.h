@@ -17,7 +17,6 @@ class ThumbnailManager {
     int window_width;
     int window_height;
     int thumbnail_height;
-    int vt_height;
     std::vector<int> widths;
     std::map<std::wstring, VirtualDesktop *> virtual_desktops;
     std::map<int, std::wstring> virtual_desktops_index;

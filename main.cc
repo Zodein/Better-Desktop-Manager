@@ -55,6 +55,12 @@ int main() {
         return 0;
     }
 
+    if (!RegisterHotKey(NULL, 1, MOD_NOREPEAT, VK_OEM_102)) {
+        auto y = GetLastError();
+        MessageBox(NULL, L"Hotkey Registration Failed!", L"Error!", MB_ICONEXCLAMATION | MB_OK);
+        return 0;
+    }
+
     MonitorResolver::update_monitors_data();
     std::vector<WindowSwitcher *> window_switchers;
 
@@ -65,84 +71,16 @@ int main() {
         window_switchers.push_back(window_switcher);
     }
 
-    auto x = RegisterHotKey(NULL, 1, MOD_NOREPEAT, 0x42);
-    auto y = GetLastError();
-
     MSG message;
     while (GetMessage(&message, NULL, 0, 0) != 0) {
         switch (message.message) {
             case WM_HOTKEY: {
                 std::cout << "thread hotkey pressed\n";
+                SetFocus(window_switchers[0]->hwnd);
                 for (auto i : window_switchers) {
-                    std::thread t1([i]() {
-                        i->thumbnail_manager->destroy_all_thumbnails();
-                        i->thumbnail_manager->update_thumbnails_if_needed();
-                        i->show_window();
-                        InvalidateRect(i->hwnd, NULL, FALSE);
-                    });
-                    t1.join();
-                    SendMessage(i->hwnd, WM_HOTKEY, 0, 0);
+                    PostMessage(i->hwnd, WM_HOTKEY, 0, 0);
                 }
-                break;
-            }
-            case MSG_UPDATE_THUMBNAILS: {
-                std::cout << "MSG_UPDATE_THUMBNAILS\n";
-                for (auto i : window_switchers) {
-                    std::thread t1([i]() {
-                        i->thumbnail_manager->destroy_all_thumbnails();
-                        i->thumbnail_manager->update_thumbnails_if_needed();
-                        i->show_window();
-                        InvalidateRect(i->hwnd, NULL, FALSE);
-                    });
-                    t1.join();
-                }
-                break;
-            }
-            case MSG_UPDATE_THUMBNAIL_POS: {
-                std::cout << "MSG_UPDATE_THUMBNAIL_POS\n";
-                for (auto i : window_switchers) {
-                    std::thread t1([i]() {
-                        i->thumbnail_manager->calculate_all_thumbnails_positions();
-                        i->thumbnail_manager->update_all_thumbnails_positions();
-                        InvalidateRect(i->hwnd, NULL, FALSE);
-                    });
-                    t1.join();
-                }
-                break;
-            }
-            case MSG_DESTROY_THUMBNAILS: {
-                std::cout << "MSG_DESTROY_THUMBNAILS\n";
-                for (auto i : window_switchers) {
-                    std::thread t1([i]() {
-                        i->thumbnail_manager->destroy_all_thumbnails();
-                        InvalidateRect(i->hwnd, NULL, FALSE);
-                    });
-                    t1.join();
-                }
-                break;
-            }
-            case MSG_UPDATE_THUMBNAILS_IF_NEEDED: {
-                std::cout << "MSG_UPDATE_THUMBNAILS_IF_NEEDED\n";
-                for (auto i : window_switchers) {
-                    std::thread t1([i]() {
-                        if (i->thumbnail_manager->update_virtualdesktops_if_needed()) InvalidateRect(i->hwnd, NULL, FALSE);
-                        if (i->thumbnail_manager->update_thumbnails_if_needed()) InvalidateRect(i->hwnd, NULL, FALSE);
-                    });
-                    t1.join();
-                }
-                break;
-            }
-            case MSG_UPDATE_THUMBNAILS_FORCE: {
-                std::cout << "MSG_UPDATE_THUMBNAILS_FORCE\n";
-                for (auto i : window_switchers) {
-                    std::thread t1([i]() {
-                        i->thumbnail_manager->update_virtualdesktops_if_needed(true);
-                        i->thumbnail_manager->update_thumbnails_if_needed(true);
-                        i->show_window();
-                        InvalidateRect(i->hwnd, NULL, FALSE);
-                    });
-                    t1.join();
-                }
+                SetForegroundWindow(window_switchers[0]->hwnd); // can't control mouse if foreground window was fullscreen without this line
                 break;
             }
         }

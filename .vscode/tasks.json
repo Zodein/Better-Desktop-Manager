@@ -64,9 +64,48 @@
             ],
             "group": {
                 "kind": "build",
+                "isDefault": false
+            },
+            "detail": "compiler: cl.exe"
+        },
+        {
+            "type": "shell",
+            "label": "MSBuild Debug",
+            "command": "msbuild",
+            "args": [
+                "better-desktop-manager.vcxproj",
+                "/p:configuration=debug",
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$msCompile"
+            ],
+            "group": {
+                "kind": "build",
                 "isDefault": true
             },
             "detail": "compiler: cl.exe"
-        }
+        },
+        {
+            "type": "shell",
+            "label": "MSBuild Release",
+            "command": "msbuild",
+            "args": [
+                "better-desktop-manager.vcxproj",
+                "/p:configuration=release",
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$msCompile"
+            ],
+            "group": {
+                "kind": "build",
+            },
+            "detail": "compiler: cl.exe"
+        },
     ]
 }
