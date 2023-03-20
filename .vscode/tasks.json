@@ -36,9 +36,8 @@
                 "/EHsc",
                 "/nologo",
                 "/W1",
+                "/MD",
                 // "/Gm",
-                "/SUBSYSTEM:WINDOWS",
-                "/machine:X64",
                 "/D_UNICODE",
                 "/DUNICODE",
                 "/std:c++17",
@@ -54,6 +53,7 @@
                 "${workspaceFolder}\\thumbnail\\**.cc",
                 "${workspaceFolder}\\window_switcher\\**.cc",
                 "${workspaceFolder}\\monitor_resolver\\**.cc",
+                "${workspaceFolder}\\virtual_desktop\\**.cc",
                 "/Fe${workspaceFolder}\\app.exe",
             ],
             "options": {

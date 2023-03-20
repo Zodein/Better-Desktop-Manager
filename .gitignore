@@ -5,6 +5,7 @@ TODO
 *.ilk
 *.idb
 *.dmp
+*.py
 
 # Prerequisites
 *.d

@@ -28,6 +28,12 @@ void Thumbnail::register_thumbnail() {
     return;
 }
 
+void Thumbnail::update_thumbnail_position() {
+    this->thumbnail_properties.rcDestination = {this->thumbnail_position.x, this->thumbnail_position.y, this->thumbnail_position.x + this->thumbnail_position.width, this->thumbnail_position.y + this->thumbnail_position.height};
+    DwmUpdateThumbnailProperties(thumbnail, &thumbnail_properties);
+    return;
+}
+
 void Thumbnail::repose_thumbnail(int x, int y) {
     RECT dest = {x, y, x + this->thumbnail_position.width, y + this->thumbnail_position.height};
     this->thumbnail_properties.rcDestination = dest;

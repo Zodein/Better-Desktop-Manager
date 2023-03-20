@@ -1,5 +1,4 @@
-#ifndef WINDOW_SWITCHER_GUI_H
-#define WINDOW_SWITCHER_GUI_H
+#pragma once
 #include <wrl.h>
 using namespace Microsoft::WRL;
 #include <d2d1.h>
@@ -15,6 +14,13 @@ using namespace Microsoft::WRL;
 #include <winuser.h>
 
 #include "../thumbnail/thumbnail_manager.h"
+
+#define MSG_UPDATE_THUMBNAILS 0x0401
+#define MSG_UPDATE_THUMBNAIL_POS 0x0402
+#define MSG_DESTROY_THUMBNAILS 0x0403
+#define MSG_UPDATE_THUMBNAILS_IF_NEEDED 0x0404
+#define MSG_UPDATE_THUMBNAILS_FORCE 0x0405
+
 class ThumbnailManager;
 
 class WindowSwitcher {
@@ -30,8 +36,12 @@ class WindowSwitcher {
     int selected_window = -1;
     int title_height = 24;
     int margin = 24;
+    int virtual_desktop_vertical_margin = 24;
+    int virtual_desktop_horizontal_margin = 24;
     int thumbnail_height = 384;
+    int virtual_desktop_scroll = 0;
     Monitor* monitor;
+    DWORD MAIN_THREAD_ID;
 
     ComPtr<ID3D11Device> direct3dDevice;
     ComPtr<ID2D1DeviceContext> dc;
@@ -46,32 +56,38 @@ class WindowSwitcher {
     ComPtr<IDXGIFactory2> dxFactory;
     IDWriteFactory* writeFactory;
     IDWriteTextFormat* writeTextFormat;
+    IDWriteTextFormat* virtual_desktop_label_format;
 
     static D2D1_COLOR_F const background_color;
     static D2D1_COLOR_F const on_mouse_color;
     static D2D1_COLOR_F const selected_color;
     static D2D1_COLOR_F const title_bg_color;
+    static D2D1_COLOR_F const active_vt_bg_color;
     ComPtr<ID2D1SolidColorBrush> background_brush;
     ComPtr<ID2D1SolidColorBrush> on_mouse_brush;
     ComPtr<ID2D1SolidColorBrush> selected_brush;
     ComPtr<ID2D1SolidColorBrush> title_bg_brush;
+    ComPtr<ID2D1SolidColorBrush> active_vt_bg_brush;
     RECT rect = {0, 0, 0, 0};
 
+    void CreateRoundRect(int x, int y, int width, int height, int leftTop, int rightTop, int rightBottom, int leftBottom, ID2D1Brush* brush);
     static LRESULT CALLBACK window_proc_static(HWND handle_window, UINT message, WPARAM wParam, LPARAM lParam);
-    ID2D1PathGeometry* CreateRoundRect(int x, int y, int width, int height, int leftTop, int rightTop, int rightBottom, int leftBottom);
-    WindowSwitcher(Monitor* monitor, std::vector<WindowSwitcher*>* window_switchers);
     LRESULT CALLBACK window_proc(HWND handle_window, UINT message, WPARAM wParam, LPARAM lParam);
+    WindowSwitcher(Monitor* monitor, std::vector<WindowSwitcher*>* window_switchers, DWORD MAIN_THREAD_ID);
+
     int create_window();
-    void on_mousewheel_event(WPARAM w_param, LPARAM l_param);
-    void on_mouseldown_event(WPARAM w_param, LPARAM l_param);
-    void on_mouselup_event(WPARAM w_param, LPARAM l_param);
-    void on_hotkey_event();
-    void on_print_event();
+    void activate_window(HWND hwnd);
     void show_window();
     void hide_window();
-    void resize_window();
+    void render();
+    void render_vdesktops();
+    void on_hotkey_event();
+    void on_print_event();
+    void on_mousewheel_event(WPARAM w_param, LPARAM l_param);
+    void on_mousemdown_event(WPARAM w_param, LPARAM l_param);
+    void on_mouseldown_event(WPARAM w_param, LPARAM l_param);
+    void on_mouselup_event(WPARAM w_param, LPARAM l_param);
     void on_mousemove_event(LPARAM l_param);
-    void activate_window(HWND hwnd);
 };
 
 struct WINDOWCOMPOSITIONATTRIBDATA {
@@ -89,4 +105,7 @@ struct AccentPolicy {
 
 typedef BOOL(WINAPI* SetWindowCompositionAttribute)(IN HWND hwnd, IN WINDOWCOMPOSITIONATTRIBDATA* pwcad);
 
-#endif
+struct ComException {
+    HRESULT result;
+    ComException(HRESULT const value) : result(value) {}
+};

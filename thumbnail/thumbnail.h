@@ -1,5 +1,4 @@
-#ifndef THUMBNAIL_H
-#define THUMBNAIL_H
+#pragma once
 #include <dwmapi.h>
 
 #include "../monitor_resolver/monitor_resolver.h"
@@ -31,6 +30,6 @@ class Thumbnail {
     void register_thumbnail();
     void unregister_thumbnail();
     void update_window_position();
+    void update_thumbnail_position();
     void repose_thumbnail(int x, int y);
 };
-#endif
