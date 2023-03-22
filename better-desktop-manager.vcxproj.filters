@@ -21,33 +21,39 @@
     <ClCompile Include="monitor_resolver\monitor_resolver.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="window_switcher\window_switcher.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="thumbnail\thumbnail.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="thumbnail\thumbnail_manager.cc">
+    <ClCompile Include="virtual_desktop\v_desktop_api.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="virtual_desktop\virtual_desktop.cc">
+    <ClCompile Include="virtual_desktop\v_desktop.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="command_center\command_center.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="virtual_desktop\v_desktop_manager.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="window_switcher\window_switcher.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="monitor_resolver\monitor_resolver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="thumbnail\thumbnail.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="thumbnail\thumbnail_manager.h">
+    <ClInclude Include="virtual_desktop\v_desktop_api.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="virtual_desktop\virtual_desktop.h">
+    <ClInclude Include="virtual_desktop\v_desktop.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="command_center\command_center.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="virtual_desktop\v_desktop_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

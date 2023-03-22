@@ -1,9 +1,10 @@
-#include "window_switcher.h"
+#include "command_center.h"
 
 #include <windowsx.h>
 
 #include <thread>
 
+#include "../virtual_desktop/v_desktop.h"
 #include "../monitor_resolver/monitor_resolver.h"
 #include "../thumbnail/thumbnail.h"
 #include "gdiplus.h"
@@ -25,17 +26,17 @@ void SafeRelease(T** ppT) {
     }
 }
 
-WNDCLASSEX WindowSwitcher::wc;
-D2D1_COLOR_F const WindowSwitcher::background_color = D2D1::ColorF(0.0, 0.0, 0.0, 0.5f);
-D2D1_COLOR_F const WindowSwitcher::on_mouse_color = D2D1::ColorF(0.5, 0.5, 0.5, 1.0f);
-D2D1_COLOR_F const WindowSwitcher::selected_color = D2D1::ColorF(1.0, 1.0, 1.0, 1.0f);
-D2D1_COLOR_F const WindowSwitcher::title_bg_color = D2D1::ColorF(0.05, 0.05, 0.05, 0.8f);
-D2D1_COLOR_F const WindowSwitcher::active_vt_bg_color = D2D1::ColorF(0.22, 0.8, 1.0, 0.8f);
+WNDCLASSEX CommandCenter::wc;
+D2D1_COLOR_F const CommandCenter::background_color = D2D1::ColorF(0.0, 0.0, 0.0, 0.5f);
+D2D1_COLOR_F const CommandCenter::on_mouse_color = D2D1::ColorF(0.5, 0.5, 0.5, 1.0f);
+D2D1_COLOR_F const CommandCenter::selected_color = D2D1::ColorF(1.0, 1.0, 1.0, 1.0f);
+D2D1_COLOR_F const CommandCenter::title_bg_color = D2D1::ColorF(0.05, 0.05, 0.05, 0.8f);
+D2D1_COLOR_F const CommandCenter::active_vt_bg_color = D2D1::ColorF(0.22, 0.8, 1.0, 0.8f);
 
 auto user32Lib = LoadLibrary(L"user32.dll");
 auto lSetWindowCompositionAttribute = (SetWindowCompositionAttribute)GetProcAddress(user32Lib, "SetWindowCompositionAttribute");
 
-void WindowSwitcher::CreateRoundRect(int x, int y, int x2, int y2, int leftTop, int rightTop, int rightBottom, int leftBottom, ID2D1Brush* brush) {
+void CommandCenter::CreateRoundRect(int x, int y, int x2, int y2, int leftTop, int rightTop, int rightBottom, int leftBottom, ID2D1Brush* brush) {
     ID2D1GeometrySink* sink = nullptr;
     ID2D1PathGeometry* path = nullptr;
 
@@ -103,13 +104,13 @@ void WindowSwitcher::CreateRoundRect(int x, int y, int x2, int y2, int leftTop, 
     return;
 }
 
-LRESULT CALLBACK WindowSwitcher::window_proc_static(HWND handle_window, UINT message, WPARAM w_param, LPARAM l_param) {
-    WindowSwitcher* window_switcher = reinterpret_cast<WindowSwitcher*>(GetWindowLongPtr(handle_window, GWLP_USERDATA));
-    if (window_switcher) return window_switcher->window_proc(handle_window, message, w_param, l_param);
+LRESULT CALLBACK CommandCenter::window_proc_static(HWND handle_window, UINT message, WPARAM w_param, LPARAM l_param) {
+    CommandCenter* command_center = reinterpret_cast<CommandCenter*>(GetWindowLongPtr(handle_window, GWLP_USERDATA));
+    if (command_center) return command_center->window_proc(handle_window, message, w_param, l_param);
     return DefWindowProc(handle_window, message, w_param, l_param);
 }
 
-LRESULT CALLBACK WindowSwitcher::window_proc(HWND handle_window, UINT message, WPARAM w_param, LPARAM l_param) {
+LRESULT CALLBACK CommandCenter::window_proc(HWND handle_window, UINT message, WPARAM w_param, LPARAM l_param) {
     switch (message) {
         case WM_MOUSEWHEEL: {
             this->on_mousewheel_event(w_param, l_param);
@@ -132,22 +133,22 @@ LRESULT CALLBACK WindowSwitcher::window_proc(HWND handle_window, UINT message, W
             break;
         }
         case WM_PAINT: {
-            this->on_print_event();
+            this->render_n_detach();
             break;
         }
         case WM_ERASEBKGND: {
-            this->on_print_event();
+            this->render_n_detach();
             break;
         }
         case WM_MOUSEMOVE: {
             this->on_mousemove_event(l_param);
             break;
-        case WM_CLOSE:
-            this->hide_window();
-            break;
-        case WM_DESTROY:
-            PostQuitMessage(0);
-            break;
+            case WM_CLOSE:
+                this->hide_window();
+                break;
+            case WM_DESTROY:
+                PostQuitMessage(0);
+                break;
         }
         default:
             return DefWindowProc(handle_window, message, w_param, l_param);
@@ -155,15 +156,15 @@ LRESULT CALLBACK WindowSwitcher::window_proc(HWND handle_window, UINT message, W
     return 0;
 }
 
-WindowSwitcher::WindowSwitcher(Monitor* monitor, std::vector<WindowSwitcher*>* window_switchers, DWORD MAIN_THREAD_ID) {
+CommandCenter::CommandCenter(Monitor* monitor, std::vector<CommandCenter*>* command_centers, DWORD MAIN_THREAD_ID) {
     this->MAIN_THREAD_ID = MAIN_THREAD_ID;
-    this->window_switchers = window_switchers;
+    this->command_centers = command_centers;
     this->monitor = monitor;
-    this->thumbnail_manager = new ThumbnailManager(this, this->monitor->get_width() - 128, this->monitor->get_height() - 128);
+    this->command_center = new VDesktopManager(this, this->monitor->get_width() - 128, this->monitor->get_height() - 128);
 }
 
-int WindowSwitcher::create_window() {
-    this->hwnd = CreateWindowEx(WS_EX_TOPMOST | WS_EX_TOOLWINDOW, WindowSwitcher::wc.lpszClassName, L"Better Desktop Manager", WS_POPUP, this->monitor->get_x(), this->monitor->get_y(), this->monitor->get_width(), this->monitor->get_height(), NULL, NULL, NULL, NULL);
+int CommandCenter::create_window() {
+    this->hwnd = CreateWindowEx(WS_EX_TOPMOST | WS_EX_TOOLWINDOW, CommandCenter::wc.lpszClassName, L"Better Desktop Manager", WS_POPUP, this->monitor->get_x(), this->monitor->get_y(), this->monitor->get_width(), this->monitor->get_height(), NULL, NULL, NULL, NULL);
 
     if (this->hwnd == NULL) {
         DWORD x = GetLastError();
@@ -185,7 +186,7 @@ int WindowSwitcher::create_window() {
     description.Height = monitor->get_height();
     HR(dxFactory->CreateSwapChainForComposition(dxgiDevice.Get(), &description, nullptr, swapChain.GetAddressOf()));
     D2D1_FACTORY_OPTIONS const options = {D2D1_DEBUG_LEVEL_INFORMATION};
-    HR(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, options, d2Factory.GetAddressOf()));
+    HR(D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, options, d2Factory.GetAddressOf()));
     HR(d2Factory->CreateDevice(dxgiDevice.Get(), d2Device.GetAddressOf()));
     HR(d2Device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, dc.GetAddressOf()));
     HR(swapChain->GetBuffer(0, __uuidof(surface), reinterpret_cast<void**>(surface.GetAddressOf())));
@@ -203,19 +204,27 @@ int WindowSwitcher::create_window() {
     HR(target->SetRoot(visual.Get()));
     HR(dcompDevice->Commit());
 
-    HR(dc->CreateSolidColorBrush(WindowSwitcher::background_color, this->background_brush.GetAddressOf()));
-    HR(dc->CreateSolidColorBrush(WindowSwitcher::on_mouse_color, this->on_mouse_brush.GetAddressOf()));
-    HR(dc->CreateSolidColorBrush(WindowSwitcher::selected_color, this->selected_brush.GetAddressOf()));
-    HR(dc->CreateSolidColorBrush(WindowSwitcher::title_bg_color, this->title_bg_brush.GetAddressOf()));
-    HR(dc->CreateSolidColorBrush(WindowSwitcher::active_vt_bg_color, this->active_vt_bg_brush.GetAddressOf()));
+    HR(dc->CreateSolidColorBrush(CommandCenter::background_color, this->background_brush.GetAddressOf()));
+    HR(dc->CreateSolidColorBrush(CommandCenter::on_mouse_color, this->on_mouse_brush.GetAddressOf()));
+    HR(dc->CreateSolidColorBrush(CommandCenter::selected_color, this->selected_brush.GetAddressOf()));
+    HR(dc->CreateSolidColorBrush(CommandCenter::title_bg_color, this->title_bg_brush.GetAddressOf()));
+    HR(dc->CreateSolidColorBrush(CommandCenter::active_vt_bg_color, this->active_vt_bg_brush.GetAddressOf()));
+
+    DWRITE_TRIMMING dwrite_trimming = {DWRITE_TRIMMING_GRANULARITY_NONE, 0, 0};
 
     DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(writeFactory), reinterpret_cast<IUnknown**>(&writeFactory));
     writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_REGULAR, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 14.0f, L"en-us", &writeTextFormat);
     writeTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
     writeTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-    writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_REGULAR, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 64.0f, L"en-us", &virtual_desktop_label_format);
+    writeTextFormat->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+    writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 64.0f, L"en-us", &virtual_desktop_label_format);
     virtual_desktop_label_format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
     virtual_desktop_label_format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+    virtual_desktop_label_format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+    writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 18.0f, L"en-us", &virtual_desktop_window_title_format);
+    virtual_desktop_window_title_format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+    virtual_desktop_window_title_format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+    virtual_desktop_window_title_format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
 
     if (user32Lib) {
         AccentPolicy accent;
@@ -236,33 +245,45 @@ int WindowSwitcher::create_window() {
     return msg.wParam;
 }
 
-void WindowSwitcher::activate_this_window(HWND hwnd_window) { SwitchToThisWindow(hwnd_window, TRUE); }
+void CommandCenter::activate_this_window(HWND hwnd_window) { SwitchToThisWindow(hwnd_window, TRUE); }
 
-void WindowSwitcher::reset_selected() {
-    if ((int)this->thumbnail_manager->thumbnails.size() > 0)
-        this->selected_window = this->thumbnail_manager->thumbnails.size() > 1;
+void CommandCenter::reset_selected() {
+    if (this->command_center->update_current_desktop() && (int)(*this->command_center->active_desktop)->windows.size() > 0)
+        this->selected_window = (*this->command_center->active_desktop)->windows.size() > 1;
     else
         this->selected_window = -1;
 }
 
-void WindowSwitcher::show_window() {
+void CommandCenter::show_window() {
     SetWindowPos(this->hwnd, HWND_TOPMOST, this->monitor->get_x(), this->monitor->get_y(), this->monitor->get_width(), this->monitor->get_height(), SWP_SHOWWINDOW);
     return;
 }
 
-void WindowSwitcher::hide_window() {
+void CommandCenter::hide_window() {
     ShowWindow(this->hwnd, SW_HIDE);
     std::lock_guard<std::mutex> lock(this->render_lock);
-    this->thumbnail_manager->destroy_all_thumbnails();
+    this->command_center->destroy_all_thumbnails();
     return;
 }
 
-void WindowSwitcher::render() {
+void CommandCenter::render_n_detach() {
+    std::lock_guard<std::mutex> lock(this->render_lock);
+    std::thread t1([=]() {
+        std::lock_guard<std::mutex> lock(this->render_lock);
+        this->render();
+    });
+    t1.detach();
+}
+
+void CommandCenter::render() {
+    if (!(*this->command_center->active_desktop)) return;
+    auto tick = GetTickCount64();
     dc->BeginDraw();
     dc->Clear();
+    std::thread t1([=]() { this->render_vdesktops(); });
 
     dc->FillRectangle(D2D1::RectF(0, 0, monitor->get_width(), monitor->get_height()), this->background_brush.Get());
-    for (auto i : this->thumbnail_manager->thumbnails) {
+    for (auto i : (*this->command_center->active_desktop)->windows) {
         int border_width = 1;
         rect.left = i->thumbnail_position.x - border_width;
         rect.top = i->thumbnail_position.y - border_width - this->title_height;
@@ -271,95 +292,116 @@ void WindowSwitcher::render() {
         this->CreateRoundRect(rect.left, rect.top, rect.right, rect.bottom, 16, 16, 0, 0, this->on_mouse_brush.Get());
     }
 
-    if (this->selected_window >= 0 && (int)this->thumbnail_manager->thumbnails.size() > this->selected_window) {
+    if (this->selected_window >= 0 && (int)(*this->command_center->active_desktop)->windows.size() > this->selected_window) {
         int border_width = this->mouse_on == this->selected_window ? 6 : 2;
-        rect.left = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.x - border_width;
-        rect.top = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.y - border_width - this->title_height;
-        rect.right = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.x + this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.width + border_width;
-        rect.bottom = this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.y + this->thumbnail_manager->thumbnails[this->selected_window]->thumbnail_position.height + border_width;
+        rect.left = (*this->command_center->active_desktop)->windows[this->selected_window]->thumbnail_position.x - border_width;
+        rect.top = (*this->command_center->active_desktop)->windows[this->selected_window]->thumbnail_position.y - border_width - this->title_height;
+        rect.right = (*this->command_center->active_desktop)->windows[this->selected_window]->thumbnail_position.x + (*this->command_center->active_desktop)->windows[this->selected_window]->thumbnail_position.width + border_width;
+        rect.bottom = (*this->command_center->active_desktop)->windows[this->selected_window]->thumbnail_position.y + (*this->command_center->active_desktop)->windows[this->selected_window]->thumbnail_position.height + border_width;
         this->CreateRoundRect(rect.left, rect.top, rect.right, rect.bottom, 16, 16, 0, 0, this->selected_brush.Get());
     }
 
-    if (this->mouse_on >= 0 && (int)this->thumbnail_manager->thumbnails.size() > this->mouse_on) {
+    if (this->mouse_on >= 0 && (int)(*this->command_center->active_desktop)->windows.size() > this->mouse_on) {
         if (this->mouse_on < 1000000) {
             int border_width = 4;
-            rect.left = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.x - border_width;
-            rect.top = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.y - border_width - this->title_height;
-            rect.right = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.x + this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.width + border_width;
-            rect.bottom = this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.y + this->thumbnail_manager->thumbnails[this->mouse_on]->thumbnail_position.height + border_width;
+            rect.left = (*this->command_center->active_desktop)->windows[this->mouse_on]->thumbnail_position.x - border_width;
+            rect.top = (*this->command_center->active_desktop)->windows[this->mouse_on]->thumbnail_position.y - border_width - this->title_height;
+            rect.right = (*this->command_center->active_desktop)->windows[this->mouse_on]->thumbnail_position.x + (*this->command_center->active_desktop)->windows[this->mouse_on]->thumbnail_position.width + border_width;
+            rect.bottom = (*this->command_center->active_desktop)->windows[this->mouse_on]->thumbnail_position.y + (*this->command_center->active_desktop)->windows[this->mouse_on]->thumbnail_position.height + border_width;
             this->CreateRoundRect(rect.left, rect.top, rect.right, rect.bottom, 16, 16, 0, 0, this->on_mouse_brush.Get());
         }
     }
 
-    for (auto i : this->thumbnail_manager->thumbnails) {
+    for (auto i : (*this->command_center->active_desktop)->windows) {
         std::wstring s;
         int len = GetWindowTextLength(i->self_hwnd) + 1;
-        len = len < 100 ? len : 100;
-        s.resize(len);
-        GetWindowText(i->self_hwnd, LPWSTR(s.c_str()), len);
-        if (len == 100) {
-            s += +L"...";
-            len = 103;
-        }
         rect.left = i->thumbnail_position.x;
         rect.top = i->thumbnail_position.y - this->title_height;
         rect.right = i->thumbnail_position.x + i->thumbnail_position.width;
         rect.bottom = i->thumbnail_position.y;
+
+        int max_len = i->thumbnail_position.width / 8;
+        if (len > max_len) {
+            len = max_len;
+            s.resize(len);
+            GetWindowText(i->self_hwnd, LPWSTR(s.c_str()), len);
+            s += +L"...";
+            len += 3;
+        } else {
+            s.resize(len);
+            GetWindowText(i->self_hwnd, LPWSTR(s.c_str()), len);
+        }
+
         this->CreateRoundRect(rect.left, rect.top, rect.right, rect.bottom, 16, 16, 0, 0, this->title_bg_brush.Get());
         dc->DrawText(s.c_str(), len, writeTextFormat, D2D1::RectF(rect.left, rect.top, rect.right, rect.bottom), this->selected_brush.Get());
+
+        // icon
+        if (i->bmp != nullptr) {
+            dc->DrawBitmap(i->bmp, D2D1::RectF(rect.left + 8, rect.top + 4, rect.left + 8 + 16, rect.top + 4 + 16));
+        }
     }
 
-    this->render_vdesktops();
-
+    t1.join();
     HR(dc->EndDraw());
     HR(swapChain->Present(1, 0));
     ValidateRect(hwnd, NULL);
 }
 
-void WindowSwitcher::render_vdesktops() {
-    int desktop_count = this->thumbnail_manager->virtual_desktops.size();
-    for (int i = 0; i < desktop_count; i++) {
-        auto temp_obj = this->thumbnail_manager->virtual_desktops_index.find(i);
-        if (temp_obj != this->thumbnail_manager->virtual_desktops_index.end()) {
-            auto temp_obj2 = this->thumbnail_manager->virtual_desktops.find(temp_obj->second);
-            if (temp_obj2 != this->thumbnail_manager->virtual_desktops.end()) {
-                if (temp_obj2->second->is_active) {
-                    this->CreateRoundRect(temp_obj2->second->render_left, temp_obj2->second->render_top, temp_obj2->second->render_right, temp_obj2->second->render_bottom, 8, 8, 8, 8, this->active_vt_bg_brush.Get());
-                } else {
-                    this->CreateRoundRect(temp_obj2->second->render_left, temp_obj2->second->render_top, temp_obj2->second->render_right, temp_obj2->second->render_bottom, 8, 8, 8, 8, this->selected_brush.Get());
+void CommandCenter::render_vdesktops() {
+    int desktop_count = this->command_center->virtual_desktops.size();
+    for (auto i : this->command_center->virtual_desktops_index) {
+        auto temp_obj2 = this->command_center->virtual_desktops.find(i.second);
+        if (temp_obj2 != this->command_center->virtual_desktops.end()) {
+            if (temp_obj2->second->guid.compare(VDesktopAPI::get_current_desktop_guid_as_string()) == 0) {
+                this->CreateRoundRect(temp_obj2->second->render_left, temp_obj2->second->render_top, temp_obj2->second->render_right, temp_obj2->second->render_bottom, 8, 8, 8, 8, this->active_vt_bg_brush.Get());
+            } else {
+                this->CreateRoundRect(temp_obj2->second->render_left, temp_obj2->second->render_top, temp_obj2->second->render_right, temp_obj2->second->render_bottom, 8, 8, 8, 8, this->selected_brush.Get());
+            }
+            dc->DrawText(std::to_wstring(i.first + 1).c_str(), i.first + 1 > 0 ? (int)log10((double)i.first + 1) + 1 : 1, virtual_desktop_label_format, D2D1::RectF(temp_obj2->second->render_right - 80, temp_obj2->second->render_bottom - 80, temp_obj2->second->render_right, temp_obj2->second->render_bottom), this->title_bg_brush.Get());
+            dc->DrawText(std::to_wstring(temp_obj2->second->windows.size()).c_str(), temp_obj2->second->windows.size() > 0 ? (int)log10((double)temp_obj2->second->windows.size()) + 1 : 1, virtual_desktop_label_format, D2D1::RectF(temp_obj2->second->render_right - 80, temp_obj2->second->render_top, temp_obj2->second->render_right, temp_obj2->second->render_top + 80), this->title_bg_brush.Get());
+            int u = 0;
+            for (auto i : temp_obj2->second->windows) {
+                dc->DrawText(i->title.c_str(), i->title.size(), virtual_desktop_window_title_format, D2D1::RectF(temp_obj2->second->render_left + 48, temp_obj2->second->render_top + 32 + (32 * u), temp_obj2->second->render_right - 96, temp_obj2->second->render_top + 32 + 32 + (32 * u)), this->title_bg_brush.Get());
+                if (i->bmp != nullptr) {
+                    dc->DrawBitmap(i->bmp, D2D1::RectF(temp_obj2->second->render_left + 16, temp_obj2->second->render_top + 8 + 32 + (32 * u), temp_obj2->second->render_left + 16 + 16, temp_obj2->second->render_top + 8 + 16 + 32 + (32 * u)));
                 }
-                dc->DrawText(std::to_wstring(temp_obj2->second->window_count).c_str(), temp_obj2->second->window_count > 0 ? (int)log10((double)temp_obj2->second->window_count) + 1 : 1, virtual_desktop_label_format, D2D1::RectF(temp_obj2->second->render_right - 80, temp_obj2->second->render_bottom - 80, temp_obj2->second->render_right, temp_obj2->second->render_bottom),
-                             this->title_bg_brush.Get());
-                dc->DrawText(std::to_wstring(i + 1).c_str(), i + 1 > 0 ? (int)log10((double)i + 1) + 1 : 1, virtual_desktop_label_format, D2D1::RectF(temp_obj2->second->render_right - 80, temp_obj2->second->render_top, temp_obj2->second->render_right, temp_obj2->second->render_top + 80), this->title_bg_brush.Get());
+                u++;
+                if (u >= this->monitor->vt_size->max_title_draw) break;
             }
         }
     }
     return;
 }
 
-void WindowSwitcher::on_hotkey_event() {
+void CommandCenter::on_hotkey_event() {
     int last_checked = 0;
     this->show_window();
-    this->thumbnail_manager->update_thumbnails_if_needed(true);
+    this->command_center->update_thumbnails_if_needed(true);
     this->reset_selected();
-    InvalidateRect(this->hwnd, NULL, FALSE);
+    // InvalidateRect(this->hwnd, NULL, FALSE);
+    this->render_n_detach();
     std::thread t1([=]() {
+        int i = 0;
         while (GetAsyncKeyState(VK_OEM_102)) {
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             if (!IsWindowVisible(this->hwnd)) return;
-            this->thumbnail_manager->update_thumbnails_if_needed();
+            if (i > 20) {
+                this->command_center->update_thumbnails_if_needed();
+                i = 0;
+            }
+            i++;
         }
         this->mouse_down = false;
         this->mouse_on = -1;
-        if (IsWindowVisible(this->hwnd)) {
+        if ((*this->command_center->active_desktop) && IsWindowVisible(this->hwnd)) {
             POINT p;
             if (GetCursorPos(&p)) {
                 if (p.x > this->monitor->get_x()) {
                     if (p.x < this->monitor->get_x2()) {
                         if (p.y > this->monitor->get_y()) {
                             if (p.y < this->monitor->get_y2()) {
-                                if (selected_window >= 0 && (int)this->thumbnail_manager->thumbnails.size() > selected_window) {
-                                    this->activate_this_window(this->thumbnail_manager->thumbnails[this->selected_window]->self_hwnd);
+                                if (selected_window >= 0 && (int)(*this->command_center->active_desktop)->windows.size() > selected_window) {
+                                    this->activate_this_window((*this->command_center->active_desktop)->windows[this->selected_window]->self_hwnd);
                                 }
                             }
                         }
@@ -375,18 +417,17 @@ void WindowSwitcher::on_hotkey_event() {
     // }
 }
 
-void WindowSwitcher::on_print_event() {
+void CommandCenter::on_print_event() {
     std::lock_guard<std::mutex> lock(this->render_lock);
     this->render();
-    // std::thread t1([this]() { this->render(); });
-    // t1.detach();
 }
 
-void WindowSwitcher::on_mousewheel_event(WPARAM w_param, LPARAM l_param) {
+void CommandCenter::on_mousewheel_event(WPARAM w_param, LPARAM l_param) {
+    if (!(*this->command_center->active_desktop)) return;
     int x = GET_X_LPARAM(l_param);
     int y = GET_Y_LPARAM(l_param);
     if (y > (this->monitor->get_y2() - (this->monitor->get_height() * 0.25))) {
-        int remaining_vt = (this->thumbnail_manager->virtual_desktops.size() - (this->monitor->get_width() / (this->monitor->vt_size->width + this->monitor->vt_size->h_margin)));
+        int remaining_vt = (this->command_center->virtual_desktops.size() - (this->monitor->get_width() / (this->monitor->vt_size->width + this->monitor->vt_size->h_margin)));
         if (remaining_vt > 0) {
             if (GET_WHEEL_DELTA_WPARAM(w_param) < 0 && this->virtual_desktop_scroll < int(remaining_vt * (this->monitor->vt_size->width + this->monitor->vt_size->h_margin)))
                 this->virtual_desktop_scroll += (this->monitor->vt_size->width + this->monitor->vt_size->h_margin) / 1.4;
@@ -396,43 +437,47 @@ void WindowSwitcher::on_mousewheel_event(WPARAM w_param, LPARAM l_param) {
                 return;
         } else
             return;
-        this->thumbnail_manager->calculate_all_virtualdesktops_positions();
-        InvalidateRect(this->hwnd, NULL, FALSE);
+        this->command_center->calculate_all_virtualdesktops_positions();
+        // InvalidateRect(this->hwnd, NULL, FALSE);
+        this->render_n_detach();
     } else {
-        if (GET_WHEEL_DELTA_WPARAM(w_param) < 0 && (int)this->thumbnail_manager->thumbnails.size() > this->selected_window + 1)
+        if (GET_WHEEL_DELTA_WPARAM(w_param) < 0 && (int)(*this->command_center->active_desktop)->windows.size() > this->selected_window + 1)
             this->selected_window++;
         else if (GET_WHEEL_DELTA_WPARAM(w_param) > 0 && this->selected_window > 0)
             this->selected_window--;
         else
             return;
-        InvalidateRect(this->hwnd, NULL, FALSE);
+        // InvalidateRect(this->hwnd, NULL, FALSE);
+        this->render_n_detach();
     }
     return;
 }
 
-void WindowSwitcher::on_mousemdown_event(WPARAM w_param, LPARAM l_param) {
+void CommandCenter::on_mousemdown_event(WPARAM w_param, LPARAM l_param) {
+    if (!(*this->command_center->active_desktop)) return;
     if (this->mouse_on != -1) {
-        PostMessage(this->thumbnail_manager->thumbnails[this->mouse_on]->self_hwnd, WM_CLOSE, 0, 0);
+        PostMessage((*this->command_center->active_desktop)->windows[this->mouse_on]->self_hwnd, WM_CLOSE, 0, 0);
     }
     return;
 }
 
-void WindowSwitcher::on_mouseldown_event(WPARAM w_param, LPARAM l_param) {
+void CommandCenter::on_mouseldown_event(WPARAM w_param, LPARAM l_param) {
     std::lock_guard<std::mutex> lock(this->thumbnail_destroyer_lock);
+    if (!(*this->command_center->active_desktop)) return;
     if (this->mouse_on != -1) {
         this->mouse_down_on[0] = GET_X_LPARAM(l_param);
         this->mouse_down_on[1] = GET_Y_LPARAM(l_param);
         this->mouse_down = true;
         if (this->mouse_on < 1000000) {
-            this->catched_thumbnail_ref_coord[0] = this->thumbnail_manager->thumbnails[mouse_on]->thumbnail_position.x - GET_X_LPARAM(l_param);
-            this->catched_thumbnail_ref_coord[1] = this->thumbnail_manager->thumbnails[mouse_on]->thumbnail_position.y - GET_Y_LPARAM(l_param);
-            this->thumbnail_manager->thumbnails[mouse_on]->unregister_thumbnail();  // update z-order of the thumbnail
-            this->thumbnail_manager->thumbnails[mouse_on]->register_thumbnail();
+            this->catched_thumbnail_ref_coord[0] = (*this->command_center->active_desktop)->windows[mouse_on]->thumbnail_position.x - GET_X_LPARAM(l_param);
+            this->catched_thumbnail_ref_coord[1] = (*this->command_center->active_desktop)->windows[mouse_on]->thumbnail_position.y - GET_Y_LPARAM(l_param);
+            (*this->command_center->active_desktop)->windows[mouse_on]->unregister_thumbnail();  // update z-order of the thumbnail
+            (*this->command_center->active_desktop)->windows[mouse_on]->register_thumbnail();
         } else {
-            auto temp = this->thumbnail_manager->virtual_desktops_index.find(mouse_on - 1000000);
-            if (temp != this->thumbnail_manager->virtual_desktops_index.end()) {
-                auto temp2 = this->thumbnail_manager->virtual_desktops.find(temp->second);
-                if (temp2 != this->thumbnail_manager->virtual_desktops.end()) {
+            auto temp = this->command_center->virtual_desktops_index.find(mouse_on - 1000000);
+            if (temp != this->command_center->virtual_desktops_index.end()) {
+                auto temp2 = this->command_center->virtual_desktops.find(temp->second);
+                if (temp2 != this->command_center->virtual_desktops.end()) {
                     this->catched_thumbnail_ref_coord[0] = -(this->virtual_desktop_scroll + GET_X_LPARAM(l_param));
                     this->catched_thumbnail_ref_coord[1] = 0;
                 }
@@ -443,28 +488,30 @@ void WindowSwitcher::on_mouseldown_event(WPARAM w_param, LPARAM l_param) {
     return;
 }
 
-void WindowSwitcher::on_mouselup_event(WPARAM w_param, LPARAM l_param) {
+void CommandCenter::on_mouselup_event(WPARAM w_param, LPARAM l_param) {
     std::unique_lock<std::mutex> lock(this->thumbnail_destroyer_lock);
+    if (!(*this->command_center->active_desktop)) return;
     this->mouse_down_on[0] -= GET_X_LPARAM(l_param);
     this->mouse_down_on[1] -= GET_Y_LPARAM(l_param);
     if (this->mouse_on != -1) {
         if (this->mouse_down_on[0] < 64 && this->mouse_down_on[0] > -64) {
             if (this->mouse_down_on[1] < 64 && this->mouse_down_on[1] > -64) {
                 if (this->mouse_on < 1000000) {
-                    this->activate_this_window(this->thumbnail_manager->thumbnails[this->mouse_on]->self_hwnd);
+                    this->activate_this_window((*this->command_center->active_desktop)->windows[this->mouse_on]->self_hwnd);
                     this->hide_window();
                 } else {
-                    auto temp = this->thumbnail_manager->virtual_desktops_index.find(this->mouse_on - 1000000);
-                    if (temp != this->thumbnail_manager->virtual_desktops_index.end()) {
-                        auto temp2 = this->thumbnail_manager->virtual_desktops.find(temp->second);
-                        if (temp2 != this->thumbnail_manager->virtual_desktops.end()) {
+                    auto temp = this->command_center->virtual_desktops_index.find(this->mouse_on - 1000000);
+                    if (temp != this->command_center->virtual_desktops_index.end()) {
+                        auto temp2 = this->command_center->virtual_desktops.find(temp->second);
+                        if (temp2 != this->command_center->virtual_desktops.end()) {
                             std::thread t1([=]() {  // using thread because virtual desktop api does not allow winproc thread
-                                VirtualDesktopManager::go_to(temp2->second->i_vt);
+                                VDesktopAPI::go_to(temp2->second->i_vt);
                             });
                             t1.join();
                             lock.unlock();
-                            this->thumbnail_manager->update_thumbnails_if_needed(true);
-                            InvalidateRect(this->hwnd, NULL, FALSE);
+                            this->command_center->update_thumbnails_if_needed(true);
+                            this->render_n_detach();
+                            // InvalidateRect(this->hwnd, NULL, FALSE);
                         }
                     }
                 }
@@ -475,16 +522,16 @@ void WindowSwitcher::on_mouselup_event(WPARAM w_param, LPARAM l_param) {
         if (this->mouse_on < 1000000) {
             int x = GET_X_LPARAM(l_param);
             int y = GET_Y_LPARAM(l_param);
-            for (auto i : this->thumbnail_manager->virtual_desktops) {
+            for (auto i : this->command_center->virtual_desktops) {
                 if (x > i.second->render_left) {
                     if (y > i.second->render_top) {
                         if (x < i.second->render_left + i.second->get_width()) {
                             if (y < i.second->render_top + i.second->get_height()) {
                                 std::thread t1([=]() {  // using thread because virtual desktop api does not allow winproc thread
                                     IApplicationView* view;
-                                    auto hr = VirtualDesktopManager::application_view_collection->GetViewForHwnd(this->thumbnail_manager->thumbnails[mouse_on]->self_hwnd, &view);
+                                    auto hr = VDesktopAPI::application_view_collection->GetViewForHwnd((*this->command_center->active_desktop)->windows[mouse_on]->self_hwnd, &view);
                                     if (SUCCEEDED(hr)) {
-                                        VirtualDesktopManager::desktop_manager_internal->MoveViewToDesktop(view, i.second->i_vt);
+                                        VDesktopAPI::desktop_manager_internal->MoveViewToDesktop(view, i.second->i_vt);
                                         this->mouse_down = false;
                                     }
                                 });
@@ -495,39 +542,44 @@ void WindowSwitcher::on_mouselup_event(WPARAM w_param, LPARAM l_param) {
                 }
             }
         }
-        this->thumbnail_manager->calculate_all_thumbnails_positions();
-        this->thumbnail_manager->update_all_thumbnails_positions();
-        InvalidateRect(this->hwnd, NULL, FALSE);
+        this->command_center->calculate_all_thumbnails_positions();
+        this->command_center->update_all_thumbnails_positions();
+        this->render_n_detach();
+        // InvalidateRect(this->hwnd, NULL, FALSE);
     }
     this->mouse_down = false;
     std::cout << "WM_LBUTTONUP\n";
     return;
 }
 
-void WindowSwitcher::on_mousemove_event(LPARAM l_param) {
+void CommandCenter::on_mousemove_event(LPARAM l_param) {
     std::lock_guard<std::mutex> lock(this->thumbnail_destroyer_lock);
+    if (!(*this->command_center->active_desktop)) return;
     int x = GET_X_LPARAM(l_param);
     int y = GET_Y_LPARAM(l_param);
     if (this->mouse_down) {
-        if ((int)this->thumbnail_manager->thumbnails.size() > this->mouse_on && this->mouse_on < 1000000) {
-            this->thumbnail_manager->thumbnails[mouse_on]->repose_thumbnail(x + this->catched_thumbnail_ref_coord[0], y + this->catched_thumbnail_ref_coord[1]);
-            InvalidateRect(this->hwnd, NULL, FALSE);
-        } else if (this->thumbnail_manager->virtual_desktops.size() >= (this->mouse_on - 1000000)) {
-            // this->thumbnail_manager->thumbnails[mouse_on]->repose_thumbnail(x + this->catched_thumbnail_ref_coord[0], y + this->catched_thumbnail_ref_coord[1]);
+        if ((int)(*this->command_center->active_desktop)->windows.size() > this->mouse_on && this->mouse_on < 1000000) {
+            (*this->command_center->active_desktop)->windows[mouse_on]->repose_thumbnail(x + this->catched_thumbnail_ref_coord[0], y + this->catched_thumbnail_ref_coord[1]);
+            // InvalidateRect(this->hwnd, NULL, FALSE);
+            this->render_n_detach();
+        } else if (this->command_center->virtual_desktops.size() >= (this->mouse_on - 1000000)) {
+            // (*this->command_center->active_desktop)->windows[mouse_on]->repose_thumbnail(x + this->catched_thumbnail_ref_coord[0], y + this->catched_thumbnail_ref_coord[1]);
             this->virtual_desktop_scroll = -(x + this->catched_thumbnail_ref_coord[0]);
-            this->thumbnail_manager->calculate_all_virtualdesktops_positions();
-            InvalidateRect(this->hwnd, NULL, FALSE);
+            this->command_center->calculate_all_virtualdesktops_positions();
+            // InvalidateRect(this->hwnd, NULL, FALSE);
+            this->render_n_detach();
         }
         return;
     }
-    for (auto i : this->thumbnail_manager->thumbnails) {
+    for (auto i : (*this->command_center->active_desktop)->windows) {
         if (x > i->thumbnail_position.x) {
             if (y > i->thumbnail_position.y) {
                 if (x < i->thumbnail_position.x + i->thumbnail_position.width) {
                     if (y < i->thumbnail_position.y + i->thumbnail_position.height) {
                         if (this->mouse_on != i->order) {
                             this->mouse_on = i->order;
-                            InvalidateRect(this->hwnd, NULL, FALSE);
+                            // InvalidateRect(this->hwnd, NULL, FALSE);
+                            this->render_n_detach();
                         }
                         return;
                     }
@@ -535,14 +587,15 @@ void WindowSwitcher::on_mousemove_event(LPARAM l_param) {
             }
         }
     }
-    for (auto i : this->thumbnail_manager->virtual_desktops) {
+    for (auto i : this->command_center->virtual_desktops) {
         if (x > i.second->render_left) {
             if (y > i.second->render_top) {
                 if (x < i.second->render_left + i.second->get_width()) {
                     if (y < i.second->render_top + i.second->get_height()) {
                         if (this->mouse_on != (i.second->index + 1000000)) {
                             this->mouse_on = (i.second->index + 1000000);
-                            InvalidateRect(this->hwnd, NULL, FALSE);
+                            // InvalidateRect(this->hwnd, NULL, FALSE);
+                            this->render_n_detach();
                         }
                         return;
                     }
@@ -552,7 +605,8 @@ void WindowSwitcher::on_mousemove_event(LPARAM l_param) {
     }
     if (this->mouse_on != -1) {
         this->mouse_on = -1;
-        InvalidateRect(this->hwnd, NULL, FALSE);
+        // InvalidateRect(this->hwnd, NULL, FALSE);
+        this->render_n_detach();
     }
     return;
 }

@@ -5,8 +5,12 @@
 #include <inspectable.h>
 #include <objbase.h>
 
+#include <iostream>
+#include <map>
 #include <string>
 #include <vector>
+
+#include "../thumbnail/thumbnail.h"
 
 const CLSID CLSID_ImmersiveShell = {0xC2F03A33, 0x21F5, 0x47FA, 0xB4, 0xBB, 0x15, 0x63, 0x62, 0xA2, 0xF2, 0x39};
 const CLSID CLSID_IVirtualDesktopManagerInternal = {0xc5e0cdca, 0x7b6e, 0x41b2, 0x9f, 0xc4, 0xd9, 0x39, 0x75, 0xcc, 0x46, 0x7b};
@@ -179,7 +183,7 @@ IApplicationViewCollection : public IUnknown {
     virtual HRESULT STDMETHODCALLTYPE UnregisterForApplicationViewChanges(DWORD _DWORD) = 0;
 };
 
-class VirtualDesktopManager {
+class VDesktopAPI {
    public:
     static IServiceProvider *service_provider;
     static IVirtualDesktopManagerInternal *desktop_manager_internal;
@@ -196,38 +200,6 @@ class VirtualDesktopManager {
     static std::wstring get_current_desktop_guid_as_string();
     static IVirtualDesktop *get_current_desktop();
     static std::wstring guid_to_string(GUID guid);
-};
-
-class VirtualDesktop {
-   public:
-    std::wstring guid = L"";
-    int index = 0;
-    int render_left = 0;
-    int render_top = 0;
-    int render_right = 0;
-    int render_bottom = 0;
-    int window_count = 0;
-    IVirtualDesktop *i_vt = nullptr;
-    bool is_active = false;
-
-    VirtualDesktop(std::wstring guid = L"", int index = 0, int window_count = 0, IVirtualDesktop *i_vt = nullptr, bool is_active = false, int render_left = 0, int render_top = 0, int render_right = 0, int render_bottom = 0) {
-        this->guid = guid;
-        this->index = index;
-        this->window_count = window_count;
-        this->i_vt = i_vt;
-        this->is_active = is_active;
-        this->render_left = render_left;
-        this->render_top = render_top;
-        this->render_right = render_right;
-        this->render_bottom = render_bottom;
-    }
-
-    int get_width() { return this->render_right - this->render_left; }
-    int get_height() { return this->render_bottom - this->render_top; }
-    int get_x() { return this->render_left; }
-    int get_y() { return this->render_top; }
-    int get_x2() { return this->render_right; }
-    int get_y2() { return this->render_bottom; }
 };
 
 // EXTERN_C const IID IID_IVirtualDesktopNotification;

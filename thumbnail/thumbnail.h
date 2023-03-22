@@ -1,5 +1,8 @@
 #pragma once
+#include <d2d1.h>
 #include <dwmapi.h>
+
+#include <string>
 
 #include "../monitor_resolver/monitor_resolver.h"
 
@@ -24,8 +27,10 @@ class Thumbnail {
     double ratio;
     bool registered = false;
     Monitor* on_monitor;
+    std::wstring title;
+    ID2D1Bitmap* bmp = nullptr;
 
-    Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order, Monitor* on_monitor);
+    Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order, Monitor* on_monitor, std::wstring title = L"");
     ~Thumbnail();
     void register_thumbnail();
     void unregister_thumbnail();

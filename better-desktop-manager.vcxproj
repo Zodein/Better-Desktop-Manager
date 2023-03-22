@@ -19,19 +19,21 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="command_center\command_center.cc" />
     <ClCompile Include="main.cc" />
     <ClCompile Include="monitor_resolver\monitor_resolver.cc" />
     <ClCompile Include="thumbnail\thumbnail.cc" />
-    <ClCompile Include="thumbnail\thumbnail_manager.cc" />
-    <ClCompile Include="virtual_desktop\virtual_desktop.cc" />
-    <ClCompile Include="window_switcher\window_switcher.cc" />
+    <ClCompile Include="virtual_desktop\v_desktop.cc" />
+    <ClCompile Include="virtual_desktop\v_desktop_api.cc" />
+    <ClCompile Include="virtual_desktop\v_desktop_manager.cc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="command_center\command_center.h" />
     <ClInclude Include="monitor_resolver\monitor_resolver.h" />
     <ClInclude Include="thumbnail\thumbnail.h" />
-    <ClInclude Include="thumbnail\thumbnail_manager.h" />
-    <ClInclude Include="virtual_desktop\virtual_desktop.h" />
-    <ClInclude Include="window_switcher\window_switcher.h" />
+    <ClInclude Include="virtual_desktop\v_desktop.h" />
+    <ClInclude Include="virtual_desktop\v_desktop_api.h" />
+    <ClInclude Include="virtual_desktop\v_desktop_manager.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

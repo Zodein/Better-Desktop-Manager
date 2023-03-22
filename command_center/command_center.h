@@ -15,11 +15,11 @@ using namespace Microsoft::WRL;
 
 #include <mutex>
 
-#include "../thumbnail/thumbnail_manager.h"
+#include "../virtual_desktop/v_desktop_manager.h"
 
-class ThumbnailManager;
+class VDesktopManager;
 
-class WindowSwitcher {
+class CommandCenter {
    public:
     static D2D1_COLOR_F const background_color;
     static D2D1_COLOR_F const on_mouse_color;
@@ -27,8 +27,8 @@ class WindowSwitcher {
     static D2D1_COLOR_F const title_bg_color;
     static D2D1_COLOR_F const active_vt_bg_color;
 
-    std::vector<WindowSwitcher*>* window_switchers;
-    ThumbnailManager* thumbnail_manager;
+    std::vector<CommandCenter*>* command_centers;
+    VDesktopManager* command_center;
     HWND hwnd;
     static WNDCLASSEX wc;
     int mouse_on = -1;
@@ -59,6 +59,7 @@ class WindowSwitcher {
     ComPtr<IDXGIFactory2> dxFactory;
     IDWriteFactory* writeFactory;
     IDWriteTextFormat* writeTextFormat;
+    IDWriteTextFormat* virtual_desktop_window_title_format;
     IDWriteTextFormat* virtual_desktop_label_format;
 
     ComPtr<ID2D1SolidColorBrush> background_brush;
@@ -71,7 +72,7 @@ class WindowSwitcher {
     void CreateRoundRect(int x, int y, int width, int height, int leftTop, int rightTop, int rightBottom, int leftBottom, ID2D1Brush* brush);
     LRESULT CALLBACK window_proc(HWND handle_window, UINT message, WPARAM wParam, LPARAM lParam);
     static LRESULT CALLBACK window_proc_static(HWND handle_window, UINT message, WPARAM wParam, LPARAM lParam);
-    WindowSwitcher(Monitor* monitor, std::vector<WindowSwitcher*>* window_switchers, DWORD MAIN_THREAD_ID);
+    CommandCenter(Monitor* monitor, std::vector<CommandCenter*>* command_centers, DWORD MAIN_THREAD_ID);
 
     int create_window();
 
@@ -79,6 +80,8 @@ class WindowSwitcher {
     void reset_selected();
     void show_window();
     void hide_window();
+
+    void render_n_detach();
     void render();
     void render_vdesktops();
 

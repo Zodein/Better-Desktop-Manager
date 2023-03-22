@@ -13,6 +13,7 @@ struct VT_Size {
     int width = 0;
     int height = 0;
     double ratio = 0;
+    int max_title_draw = 0;
 };
 
 class Monitor {
@@ -42,6 +43,7 @@ class Monitor {
         this->vt_size->height = (this->get_height() * 0.25) - (this->vt_size->v_margin * 2);
         this->vt_size->width = (this->vt_size->height * this->ratio);
         this->vt_size->ratio = this->ratio;
+        this->vt_size->max_title_draw = this->vt_size->height / 40;
     }
     int get_width() { return this->right - this->left; }
     int get_height() { return this->bottom - this->top; }

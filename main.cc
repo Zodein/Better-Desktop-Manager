@@ -15,8 +15,8 @@
 #include <thread>
 #include <vector>
 
-#include "virtual_desktop/virtual_desktop.h"
-#include "window_switcher/window_switcher.h"
+#include "command_center/command_center.h"
+#include "virtual_desktop/v_desktop.h"
 
 int main() {
     // LPWSTR guidstr = L"{1841C6D7-4F9D-42C0-AF41-8747538F10E5}";
@@ -32,25 +32,25 @@ int main() {
 
     DWORD MAIN_THREAD_ID = GetCurrentThreadId();
 
-    if (!VirtualDesktopManager::init()) {
+    if (!VDesktopAPI::init()) {
         MessageBox(NULL, L"Virtual Desktop API Failed!", L"Error!", MB_ICONEXCLAMATION | MB_OK);
         return 0;
     }
 
-    WindowSwitcher::wc.cbSize = sizeof(WNDCLASSEX);
-    WindowSwitcher::wc.style = 0;
-    WindowSwitcher::wc.lpfnWndProc = WindowSwitcher::window_proc_static;
-    WindowSwitcher::wc.cbClsExtra = 0;
-    WindowSwitcher::wc.cbWndExtra = 0;
-    WindowSwitcher::wc.hInstance = NULL;
-    WindowSwitcher::wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-    WindowSwitcher::wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    WindowSwitcher::wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
-    WindowSwitcher::wc.lpszMenuName = NULL;
-    WindowSwitcher::wc.lpszClassName = L"class";
-    WindowSwitcher::wc.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
+    CommandCenter::wc.cbSize = sizeof(WNDCLASSEX);
+    CommandCenter::wc.style = 0;
+    CommandCenter::wc.lpfnWndProc = CommandCenter::window_proc_static;
+    CommandCenter::wc.cbClsExtra = 0;
+    CommandCenter::wc.cbWndExtra = 0;
+    CommandCenter::wc.hInstance = NULL;
+    CommandCenter::wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    CommandCenter::wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    CommandCenter::wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
+    CommandCenter::wc.lpszMenuName = NULL;
+    CommandCenter::wc.lpszClassName = L"class";
+    CommandCenter::wc.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
 
-    if (!RegisterClassEx(&WindowSwitcher::wc)) {
+    if (!RegisterClassEx(&CommandCenter::wc)) {
         MessageBox(NULL, L"Window Registration Failed!", L"Error!", MB_ICONEXCLAMATION | MB_OK);
         return 0;
     }
@@ -62,13 +62,13 @@ int main() {
     }
 
     MonitorResolver::update_monitors_data();
-    std::vector<WindowSwitcher *> window_switchers;
+    std::vector<CommandCenter *> command_centers;
 
     for (auto i : MonitorResolver::monitors) {
-        WindowSwitcher *window_switcher = new WindowSwitcher(i.second, &window_switchers, MAIN_THREAD_ID);
-        std::thread t1([window_switcher]() { window_switcher->create_window(); });
+        CommandCenter *command_center = new CommandCenter(i.second, &command_centers, MAIN_THREAD_ID);
+        std::thread t1([command_center]() { command_center->create_window(); });
         t1.detach();
-        window_switchers.push_back(window_switcher);
+        command_centers.push_back(command_center);
     }
 
     MSG message;
@@ -76,11 +76,11 @@ int main() {
         switch (message.message) {
             case WM_HOTKEY: {
                 std::cout << "thread hotkey pressed\n";
-                SetFocus(window_switchers[0]->hwnd);
-                for (auto i : window_switchers) {
+                SetFocus(command_centers[0]->hwnd);
+                for (auto i : command_centers) {
                     PostMessage(i->hwnd, WM_HOTKEY, 0, 0);
                 }
-                SetForegroundWindow(window_switchers[0]->hwnd); // can't control mouse if foreground window was fullscreen without this line
+                SetForegroundWindow(command_centers[0]->hwnd);  // can't control mouse if foreground window was fullscreen without this line
                 break;
             }
         }

@@ -2,15 +2,18 @@
 
 #include "iostream"
 
-Thumbnail::Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order, Monitor* on_monitor) {
+Thumbnail::Thumbnail(HWND self_hwnd, HWND destination_hwnd, int order, Monitor* on_monitor, std::wstring title) {
     this->self_hwnd = self_hwnd;
     this->destination_hwnd = destination_hwnd;
     this->order = order;
     this->on_monitor = on_monitor;
+    this->title = title;
 }
 
 Thumbnail::~Thumbnail() {
+    // std::cout << "thumb destroyed\n";
     if (this->registered) this->unregister_thumbnail();
+    if (this->bmp != nullptr) this->bmp->Release();
 }
 
 void Thumbnail::register_thumbnail() {
