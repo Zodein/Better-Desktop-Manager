@@ -25,6 +25,7 @@ class VirtualDesktop {
     int render_bottom = 0;
     IVirtualDesktop *i_vt = nullptr;
     bool is_active = false;
+    bool stale_data = false;
     ~VirtualDesktop();
     VirtualDesktop(std::wstring guid = L"", int index = 0, IVirtualDesktop *i_vt = nullptr, bool is_active = false, int render_left = 0, int render_top = 0, int render_right = 0, int render_bottom = 0);
 

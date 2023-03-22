@@ -17,89 +17,53 @@ VDesktopManager::VDesktopManager(CommandCenter *command_center, int window_width
     *this->active_desktop = NULL;
 }
 
-bool VDesktopManager::update_current_desktop() {
+void VDesktopManager::update_current_desktop() {
     auto temp = this->virtual_desktops.find(VDesktopAPI::get_current_desktop_guid_as_string());
     if (temp != this->virtual_desktops.end()) {
-        if (*this->active_desktop == temp->second) return true;
+        if (*this->active_desktop == temp->second) return;
         *this->active_desktop = temp->second;
-        return true;
+        {
+            std::lock_guard<std::mutex> lock1(this->c_s->thumbnail_destroyer_lock);
+            std::lock_guard<std::mutex> lock(this->c_s->render_lock);
+            this->unregister_thumbnails();
+            this->calculate_thumbnails_pose();
+            this->register_thumbnails();
+        }
+        return;
     } else {
         *this->active_desktop = NULL;
-        return false;
+        return;
     }
 }
 
-bool VDesktopManager::update_thumbnails_if_needed(bool force) {
-    std::lock_guard<std::mutex> lock1(this->c_s->thumbnail_destroyer_lock);
-    std::lock_guard<std::mutex> lock(this->c_s->render_lock);
-    std::thread t1([=]() {  // using thread because virtual desktop api does not allow winproc thread
-        if (force || this->check_if_new_thumbnails_added()) {
-            this->destroy_all_thumbnails();
-            this->update_virtualdesktops_if_needed();
-            EnumWindows(VDesktopManager::collector_callback, reinterpret_cast<LPARAM>(c_s));
-            if (this->virtual_desktops.size() < 1) {
-                InvalidateRect(this->c_s->hwnd, NULL, FALSE);
-                return;
+void VDesktopManager::refresh_thumbnails() {
+    for (auto i : this->virtual_desktops) {
+        if (i.second->stale_data) {
+            for (auto u : i.second->windows) {
+                delete u;
             }
-            this->update_all_windows_positions();
-            this->calculate_all_thumbnails_positions();
-            this->register_all_thumbnails();
-            this->update_current_desktop();
-            InvalidateRect(this->c_s->hwnd, NULL, FALSE);
-            return;
-        }
-    });
-    t1.join();
-    return false;
-}
-bool VDesktopManager::check_if_new_thumbnails_added() {
-    this->destroy_all_comparing_thumbnails();
-
-    EnumWindows(VDesktopManager::comparing_collector_callback, reinterpret_cast<LPARAM>(c_s));
-    {
-        if (this->virtual_desktops.size() != this->virtual_desktops_comparing.size()) {
-            std::cout << "desktop sizes not equal\n";
-            return true;
+            i.second->windows.clear();
         }
     }
-    {
-        for (auto u : this->virtual_desktops) {
-            auto temp = this->virtual_desktops_comparing.find(u.first);
-            if (temp != this->virtual_desktops_comparing.end()) {
-                if (u.second->windows.size() != temp->second->windows.size()) {
-                    std::cout << "window sizes not equal\n";
-                    return true;
-                }
-            }
+    EnumWindows(VDesktopManager::collector_callback, reinterpret_cast<LPARAM>(c_s));
+    this->calculate_thumbnails_pose();
+    this->register_thumbnails();
+    for (auto i : this->virtual_desktops) {
+        if (i.second->stale_data) {
+            i.second->stale_data = false;
         }
     }
-    {
-        for (auto u : this->virtual_desktops) {
-            auto temp = this->virtual_desktops_comparing.find(u.first);
-            if (temp != this->virtual_desktops_comparing.end()) {
-                for (int i = 0; i < u.second->windows.size() && i < temp->second->windows.size(); i++) {
-                    if (u.second->windows[i]->self_hwnd != temp->second->windows[i]->self_hwnd) {
-                        std::cout << "hwnds not equal\n";
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    return false;
 }
 
-bool VDesktopManager::update_virtualdesktops_if_needed(bool force) {
+void VDesktopManager::refresh_v_desktops() {
     IObjectArray *desktops;
     UINT size = 0;
     IVirtualDesktop *desktop;
     GUID guid;
     WCHAR id[256];
     bool is_active = false;
-    auto hr = VDesktopAPI::desktop_manager_internal->GetDesktops(0, &desktops);
-    if (SUCCEEDED(hr)) {
-        hr = desktops->GetCount(&size);
-        if (SUCCEEDED(hr) && (force || this->virtual_desktops.size() != size)) {
+    if (SUCCEEDED(VDesktopAPI::desktop_manager_internal->GetDesktops(0, &desktops))) {
+        if (SUCCEEDED(desktops->GetCount(&size))) {
             *this->active_desktop = NULL;
             for (auto i : this->virtual_desktops) {
                 delete i.second;
@@ -109,22 +73,21 @@ bool VDesktopManager::update_virtualdesktops_if_needed(bool force) {
             for (int i = 0; i < size; i++) {
                 desktops->GetAt(i, IID_IVirtualDesktop, (void **)&desktop);
                 desktop->GetID(&guid);
-                hr = StringFromGUID2(guid, id, _countof(id));
-                if (SUCCEEDED(hr)) {
+                if (SUCCEEDED(StringFromGUID2(guid, id, _countof(id)))) {
                     is_active = std::wstring(id).compare(VDesktopAPI::get_current_desktop_guid_as_string()) == 0;
                     VirtualDesktop *virtual_desktop = new VirtualDesktop(std::wstring(id), i, desktop, is_active);
                     this->virtual_desktops.insert({std::wstring(id), virtual_desktop});
                     this->virtual_desktops_index.insert({i, std::wstring(id)});
                 }
             }
+            this->calculate_vdesktops_pose();
             desktops->Release();
-            this->calculate_all_virtualdesktops_positions();
         }
     }
-    return false;
+    return;
 }
 
-void VDesktopManager::calculate_all_virtualdesktops_positions() {
+void VDesktopManager::calculate_vdesktops_pose() {
     for (auto i : this->virtual_desktops_index) {
         auto virtual_desktop = this->virtual_desktops.find(i.second);
         if (virtual_desktop != this->virtual_desktops.end()) {
@@ -138,9 +101,9 @@ void VDesktopManager::calculate_all_virtualdesktops_positions() {
     }
 }
 
-void VDesktopManager::calculate_all_thumbnails_positions(double extra_ratio) {
-    if (!update_current_desktop()) return;
-    this->update_all_windows_positions();
+void VDesktopManager::calculate_thumbnails_pose(double extra_ratio) {
+    if (!(*this->active_desktop)) return;
+    this->update_windows_pose();
     int i = 0;
     int u = 0;
     this->widths.clear();
@@ -164,7 +127,7 @@ void VDesktopManager::calculate_all_thumbnails_positions(double extra_ratio) {
         }
 
         if (((this->c_s->thumbnail_height + this->c_s->margin + this->c_s->title_height) * this->widths.size() * extra_ratio) > (this->window_height * 0.75)) {
-            return this->calculate_all_thumbnails_positions(extra_ratio * (double)(0.9));
+            return this->calculate_thumbnails_pose(extra_ratio * (double)(0.9));
         }
     }
 
@@ -218,24 +181,24 @@ void VDesktopManager::calculate_all_thumbnails_positions(double extra_ratio) {
     return;
 }
 
-void VDesktopManager::update_all_thumbnails_positions() {
-    if (!update_current_desktop()) return;
+void VDesktopManager::update_thumbnails_pose() {
+    if (!(*this->active_desktop)) return;
     for (auto i : (*this->active_desktop)->windows) {
         i->update_thumbnail_position();
     }
     return;
 }
 
-void VDesktopManager::update_all_windows_positions() {
-    if (!update_current_desktop()) return;
+void VDesktopManager::update_windows_pose() {
+    if (!(*this->active_desktop)) return;
     for (auto i : (*this->active_desktop)->windows) {
         i->update_window_position();
     }
     return;
 }
 
-void VDesktopManager::register_all_thumbnails() {
-    if (!update_current_desktop()) return;
+void VDesktopManager::register_thumbnails() {
+    if (!(*this->active_desktop)) return;
     for (auto i : (*this->active_desktop)->windows) {
         i->register_thumbnail();
     }
@@ -243,26 +206,25 @@ void VDesktopManager::register_all_thumbnails() {
     return;
 }
 
-void VDesktopManager::destroy_all_thumbnails() {
-    *this->active_desktop = NULL;
+void VDesktopManager::unregister_thumbnails() {
+    if (!(*this->active_desktop)) return;
     for (auto i : this->virtual_desktops) {
-        delete i.second;
+        for (auto i : i.second->windows) {
+            i->unregister_thumbnail();
+        }
     }
-    this->virtual_desktops.clear();
     return;
 }
 
-void VDesktopManager::destroy_all_comparing_thumbnails() {
+void VDesktopManager::check_thumbnail_data() {
     IObjectArray *desktops;
     UINT size = 0;
     IVirtualDesktop *desktop;
     GUID guid;
     WCHAR id[256];
     bool is_active = false;
-    auto hr = VDesktopAPI::desktop_manager_internal->GetDesktops(0, &desktops);
-    if (SUCCEEDED(hr)) {
-        hr = desktops->GetCount(&size);
-        if (SUCCEEDED(hr)) {
+    if (SUCCEEDED(VDesktopAPI::desktop_manager_internal->GetDesktops(0, &desktops))) {
+        if (SUCCEEDED(desktops->GetCount(&size))) {
             for (auto i : this->virtual_desktops_comparing) {
                 delete i.second;
             }
@@ -270,18 +232,97 @@ void VDesktopManager::destroy_all_comparing_thumbnails() {
             for (int i = 0; i < size; i++) {
                 desktops->GetAt(i, IID_IVirtualDesktop, (void **)&desktop);
                 desktop->GetID(&guid);
-                hr = StringFromGUID2(guid, id, _countof(id));
-                if (SUCCEEDED(hr)) {
+                if (SUCCEEDED(StringFromGUID2(guid, id, _countof(id)))) {
                     is_active = std::wstring(id).compare(VDesktopAPI::get_current_desktop_guid_as_string()) == 0;
                     VirtualDesktop *virtual_desktop = new VirtualDesktop(std::wstring(id), i, desktop, is_active);
                     this->virtual_desktops_comparing.insert({std::wstring(id), virtual_desktop});
                 }
             }
             desktops->Release();
-            this->calculate_all_virtualdesktops_positions();
+        }
+    }
+    EnumWindows(VDesktopManager::comparing_collector_callback, reinterpret_cast<LPARAM>(c_s));
+    for (auto u : this->virtual_desktops) {
+        auto temp = this->virtual_desktops_comparing.find(u.first);
+        if (temp != this->virtual_desktops_comparing.end()) {
+            if (u.second->windows.size() == temp->second->windows.size()) {
+                for (int i = 0; i < u.second->windows.size() && i < temp->second->windows.size(); i++) {
+                    if (u.second->windows[i]->self_hwnd != temp->second->windows[i]->self_hwnd) {
+                        u.second->stale_data = true;
+                        this->stale_thumbnails = true;
+                        std::cout << "hwnds not equal\n";
+                        // return true;
+                    }
+                }
+            } else {
+                u.second->stale_data = true;
+                this->stale_thumbnails = true;
+                std::cout << "windows sizes not equal\n";
+            }
         }
     }
     return;
+}
+
+void VDesktopManager::check_vdesktop_data() {
+    IObjectArray *desktops;
+    UINT size = 0;
+    IVirtualDesktop *desktop;
+    GUID guid;
+    WCHAR id[256];
+    bool is_active = false;
+    if (SUCCEEDED(VDesktopAPI::desktop_manager_internal->GetDesktops(0, &desktops))) {
+        if (SUCCEEDED(desktops->GetCount(&size))) {
+            this->virtual_desktops_index_comparing.clear();
+            for (int i = 0; i < size; i++) {  // refresh index
+                desktops->GetAt(i, IID_IVirtualDesktop, (void **)&desktop);
+                desktop->GetID(&guid);
+                if (SUCCEEDED(StringFromGUID2(guid, id, _countof(id)))) {
+                    this->virtual_desktops_index_comparing.insert({i, std::wstring(id)});
+                }
+            }
+            bool any_stale = this->virtual_desktops.size() != this->virtual_desktops_index_comparing.size();  // check phase 1
+            if (!any_stale) {                                                                                 // check phase 2
+                for (auto i : this->virtual_desktops_index_comparing) {
+                    auto temp = this->virtual_desktops.find(i.second);
+                    if (temp == this->virtual_desktops.end()) {
+                        any_stale = true;
+                        break;
+                    }
+                }
+            }
+            this->stale_vdesktops = any_stale;
+            desktops->Release();
+        }
+    }
+}
+
+void VDesktopManager::refresh_data() {
+    std::lock_guard<std::mutex> lock2(this->refresh_lock);
+    this->update_current_desktop();
+
+    this->check_vdesktop_data();
+    this->check_thumbnail_data();
+
+    if (this->stale_thumbnails || this->stale_vdesktops) {
+        std::unique_lock<std::mutex> lock1(this->c_s->thumbnail_destroyer_lock);
+        std::unique_lock<std::mutex> lock(this->c_s->render_lock);
+        std::thread t1([=]() {  // using thread because virtual desktop api does not allow winproc thread
+            if (this->stale_vdesktops) {
+                std::cout << "Virtual Desktops Updating\n";
+                this->refresh_v_desktops();
+            }
+            if (this->stale_thumbnails) {
+                this->refresh_thumbnails();
+            }
+            this->stale_thumbnails = false;
+            this->stale_vdesktops = false;
+        });
+        t1.join();
+        lock.unlock();
+        lock1.unlock();
+        this->c_s->render_n_detach();
+    }
 }
 
 BOOL CALLBACK VDesktopManager::collector_callback(HWND hwnd, LPARAM lParam) {
@@ -301,21 +342,14 @@ BOOL CALLBACK VDesktopManager::collector_callback(HWND hwnd, LPARAM lParam) {
         app_view->GetShowInSwitchers(&shown);
         if (shown != 0) {
             app_view->GetVirtualDesktopId(&desktop_guid);
-            auto temp = c_s->command_center->virtual_desktops.find(VDesktopAPI::guid_to_string(desktop_guid));
-            if (temp != c_s->command_center->virtual_desktops.end()) {
+            auto temp = c_s->desktop_manager->virtual_desktops.find(VDesktopAPI::guid_to_string(desktop_guid));
+            if (temp != c_s->desktop_manager->virtual_desktops.end()) {
+                if (!temp->second->stale_data) return TRUE;
                 std::wstring s;
                 int len = GetWindowTextLength(hwnd) + 1;
-                int max_len = c_s->monitor->vt_size->width / 11;
-                if (len > max_len) {
-                    len = max_len;
-                    s.resize(len);
-                    GetWindowText(hwnd, LPWSTR(s.c_str()), len);
-                    s += +L"...";
-                    len += 3;
-                } else {
-                    s.resize(len);
-                    GetWindowText(hwnd, LPWSTR(s.c_str()), len);
-                }
+                s.resize(len);
+                GetWindowText(hwnd, LPWSTR(s.c_str()), len);
+                // }
                 temp->second->windows.push_back(new Thumbnail(hwnd, c_s->hwnd, temp->second->windows.size(), c_s->monitor, s));
                 {
                     HICON iconHandle = nullptr;
@@ -365,9 +399,10 @@ BOOL CALLBACK VDesktopManager::comparing_collector_callback(HWND hwnd, LPARAM lP
         app_view->GetShowInSwitchers(&shown);
         if (shown != 0) {
             app_view->GetVirtualDesktopId(&desktop_guid);
-            auto temp = c_s->command_center->virtual_desktops_comparing.find(VDesktopAPI::guid_to_string(desktop_guid));
-            if (temp != c_s->command_center->virtual_desktops_comparing.end()) {
-                temp->second->windows.push_back(new Thumbnail(hwnd, c_s->hwnd, temp->second->windows.size(), c_s->monitor));
+            auto temp = c_s->desktop_manager->virtual_desktops_comparing.find(VDesktopAPI::guid_to_string(desktop_guid));
+            if (temp != c_s->desktop_manager->virtual_desktops_comparing.end()) {
+                int index = temp->second->windows.size();
+                temp->second->windows.push_back(new Thumbnail(hwnd, c_s->hwnd, index, c_s->monitor));
             }
         }
         app_view->Release();

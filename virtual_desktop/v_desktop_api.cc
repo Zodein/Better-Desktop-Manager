@@ -1,6 +1,8 @@
-#include <winerror.h>
-#include "v_desktop.h"
 #include "v_desktop_api.h"
+
+#include <winerror.h>
+
+#include "v_desktop.h"
 
 //
 // ONLY WORKS BETWEEN 21313 >= BUILD < 22449:
@@ -96,4 +98,60 @@ std::wstring VDesktopAPI::guid_to_string(GUID guid) {
     WCHAR id[256];
     auto hr = StringFromGUID2(guid, id, _countof(id));
     return SUCCEEDED(hr) ? std::wstring(id) : L"";
+}
+
+bool VDesktopAPI::goto_previous_desktop() {
+    IObjectArray *desktops;
+    IVirtualDesktop *current_desktop;
+    IVirtualDesktop *desktop;
+    GUID current_guid;
+    GUID guid;
+    UINT size = 0;
+    if (SUCCEEDED(VDesktopAPI::desktop_manager_internal->GetDesktops(0, &desktops)) && SUCCEEDED(VDesktopAPI::desktop_manager_internal->GetCurrentDesktop(0, &current_desktop))) {
+        if (SUCCEEDED(desktops->GetCount(&size)) && SUCCEEDED(current_desktop->GetID(&current_guid))) {
+            for (UINT i = 0; i < size; i++) {
+                if (SUCCEEDED(desktops->GetAt(i, IID_IVirtualDesktop, (void **)&desktop)) && SUCCEEDED(desktop->GetID(&guid)) && guid.Data1 == current_guid.Data1) {
+                    if (SUCCEEDED(desktops->GetAt(i - 1, IID_IVirtualDesktop, (void **)&desktop)) && SUCCEEDED(VDesktopAPI::desktop_manager_internal->SwitchDesktop(0, desktop))) return true;
+                    return false;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool VDesktopAPI::goto_next_desktop() {
+    IObjectArray *desktops;
+    IVirtualDesktop *current_desktop;
+    IVirtualDesktop *desktop;
+    GUID current_guid;
+    GUID guid;
+    UINT size = 0;
+    if (SUCCEEDED(VDesktopAPI::desktop_manager_internal->GetDesktops(0, &desktops)) && SUCCEEDED(VDesktopAPI::desktop_manager_internal->GetCurrentDesktop(0, &current_desktop))) {
+        if (SUCCEEDED(desktops->GetCount(&size)) && SUCCEEDED(current_desktop->GetID(&current_guid))) {
+            for (UINT i = 0; i < size; i++) {
+                if (SUCCEEDED(desktops->GetAt(i, IID_IVirtualDesktop, (void **)&desktop)) && SUCCEEDED(desktop->GetID(&guid)) && guid.Data1 == current_guid.Data1) {
+                    if (SUCCEEDED(desktops->GetAt(i + 1, IID_IVirtualDesktop, (void **)&desktop)) && SUCCEEDED(VDesktopAPI::desktop_manager_internal->SwitchDesktop(0, desktop))) return true;
+                    return false;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool VDesktopAPI::goto_this_desktop(int to_this) {
+    IObjectArray *desktops;
+    IVirtualDesktop *current_desktop;
+    IVirtualDesktop *desktop;
+    GUID current_guid;
+    GUID guid;
+    UINT size = 0;
+    if (SUCCEEDED(VDesktopAPI::desktop_manager_internal->GetDesktops(0, &desktops))) {
+        if (SUCCEEDED(desktops->GetCount(&size))) {
+            if (size < to_this && SUCCEEDED(desktops->GetAt(to_this, IID_IVirtualDesktop, (void **)&desktop)) && SUCCEEDED(VDesktopAPI::desktop_manager_internal->SwitchDesktop(0, desktop))) return true;
+            return false;
+        }
+    }
+    return false;
 }

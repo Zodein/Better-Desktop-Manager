@@ -15,27 +15,33 @@ class VDesktopManager {
     int window_width;
     int window_height;
     int thumbnail_height;
+    bool stale_thumbnails = false;
+    bool stale_vdesktops = false;
 
     VirtualDesktop **active_desktop = (VirtualDesktop **)new int;
 
     std::vector<int> widths;
 
     std::map<int, std::wstring> virtual_desktops_index;
+    std::map<int, std::wstring> virtual_desktops_index_comparing;
     std::map<std::wstring, VirtualDesktop *> virtual_desktops;
     std::map<std::wstring, VirtualDesktop *> virtual_desktops_comparing;
 
+    std::mutex refresh_lock;
+
     VDesktopManager(CommandCenter *command_center, int window_width, int window_height);
-    bool update_current_desktop();
-    bool check_if_new_thumbnails_added();
-    void calculate_all_thumbnails_positions(double extra_ratio = 1.0);
-    void calculate_all_virtualdesktops_positions();
-    void update_all_thumbnails_positions();
-    void update_all_windows_positions();
-    void register_all_thumbnails();
-    void destroy_all_thumbnails();
-    void destroy_all_comparing_thumbnails();
-    bool update_thumbnails_if_needed(bool force = false);
-    bool update_virtualdesktops_if_needed(bool force = false);
+    void update_current_desktop();
+    void refresh_thumbnails();
+    void refresh_v_desktops();
+    void calculate_vdesktops_pose();
+    void calculate_thumbnails_pose(double extra_ratio = 1.0);
+    void update_thumbnails_pose();
+    void update_windows_pose();
+    void register_thumbnails();
+    void unregister_thumbnails();
+    void check_thumbnail_data();
+    void check_vdesktop_data();
+    void refresh_data();
     static BOOL CALLBACK collector_callback(HWND hwnd, LPARAM lParam);
     static BOOL CALLBACK comparing_collector_callback(HWND hwnd, LPARAM lParam);
 };

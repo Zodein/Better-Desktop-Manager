@@ -200,6 +200,9 @@ class VDesktopAPI {
     static std::wstring get_current_desktop_guid_as_string();
     static IVirtualDesktop *get_current_desktop();
     static std::wstring guid_to_string(GUID guid);
+    static bool goto_next_desktop();
+    static bool goto_previous_desktop();
+    static bool goto_this_desktop(int to_this);
 };
 
 // EXTERN_C const IID IID_IVirtualDesktopNotification;
