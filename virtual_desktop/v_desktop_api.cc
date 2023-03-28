@@ -8,7 +8,7 @@
 // ONLY WORKS BETWEEN 21313 >= BUILD < 22449:
 //
 IServiceProvider *VDesktopAPI::service_provider = nullptr;
-IVirtualDesktopManagerInternal *VDesktopAPI::desktop_manager_internal = nullptr;
+IVirtualDesktopManagerInternal2 *VDesktopAPI::desktop_manager_internal = nullptr;
 IApplicationViewCollection *VDesktopAPI::application_view_collection = nullptr;
 
 bool VDesktopAPI::init() {
@@ -155,3 +155,13 @@ bool VDesktopAPI::goto_this_desktop(int to_this) {
     }
     return false;
 }
+
+void VDesktopAPI::create_desktop() {
+    IVirtualDesktop **temp = (IVirtualDesktop**)new int;
+    VDesktopAPI::desktop_manager_internal->CreateDesktopW(0, temp);
+}
+
+// void IVirtualDesktopManagerInternal2::create_desktop(){
+//         IVirtualDesktop **temp = (IVirtualDesktop **)new int;
+//         VDesktopAPI::desktop_manager_internal->CreateDesktopW(0, temp);
+// }

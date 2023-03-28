@@ -19,11 +19,6 @@ const CLSID IID_IApplicationView = {0x372e1d3b, 0x38d3, 0x42e4, 0xa1, 0x5b, 0x8a
 const CLSID IID_IApplicationViewCollection = {0x1841c6d7, 0x4f9d, 0x42c0, 0xaf, 0x41, 0x87, 0x47, 0x53, 0x8f, 0x10, 0xe5};
 const IID IID_IVirtualDesktop = {0x536d3495, 0xb208, 0x4cc9, 0xae, 0x26, 0xde, 0x81, 0x11, 0x27, 0x5b, 0xf8};
 
-// const CLSID CLSID_ImmersiveShell = {0xC2F03A33, 0x21F5, 0x47FA, 0xB4, 0xBB, 0x15, 0x63, 0x62, 0xA2, 0xF2, 0x39};
-// const CLSID CLSID_VirtualDesktopAPI_Unknown = {0xC5E0CDCA, 0x7B6E, 0x41B2, 0x9F, 0xC4, 0xD9, 0x39, 0x75, 0xCC, 0x46, 0x7B};
-// const IID IID_IVirtualDesktopManagerInternal = {0xEF9F1A6C, 0xD3CC, 0x4358, 0xB7, 0x12, 0xF8, 0x4B, 0x63, 0x5B, 0xEB, 0xE7};
-// const CLSID CLSID_IVirtualNotificationService = {0xA501FDEC, 0x4A09, 0x464C, 0xAE, 0x4E, 0x1B, 0x9C, 0x21, 0xB8, 0x49, 0x18};
-
 typedef UINT IAsyncCallback;
 typedef UINT IImmersiveMonitor;
 typedef UINT APPLICATION_VIEW_COMPATIBILITY_POLICY;
@@ -97,9 +92,6 @@ IApplicationView : public IUnknown {
     virtual HRESULT STDMETHODCALLTYPE Unknown12(SIZE * _SIZE) = 0;
 };
 
-// EXTERN_C const IID IID_IVirtualDesktop;
-
-// FF72FFDD-BE7E-43FC-9C03-AD81681E88E4
 MIDL_INTERFACE("536D3495-B208-4CC9-AE26-DE8111275BF8")
 IVirtualDesktop : public IUnknown {
    public:
@@ -110,7 +102,6 @@ IVirtualDesktop : public IUnknown {
     virtual HRESULT STDMETHODCALLTYPE GetWallpaperPath(HSTRING * pPath) = 0;
 };
 
-// EXTERN_C const IID IID_IVirtualDesktop2;
 MIDL_INTERFACE("31EBDE3F-6EC3-4CBD-B9FB-0EF6D09B41F4")
 IVirtualDesktop2 : public IUnknown {
    public:
@@ -119,10 +110,13 @@ IVirtualDesktop2 : public IUnknown {
     virtual HRESULT STDMETHODCALLTYPE GetName(HSTRING * pName) = 0;
 };
 
-// EXTERN_C const IID IID_IVirtualDesktopManagerInternal;
+class IVTDesktopManagerInternalInterface {
+   public:
+    virtual void create_desktop() = 0;
+};
 
 MIDL_INTERFACE("B2F925B9-5A0F-4D2E-9F4D-2B1507593C10")
-IVirtualDesktopManagerInternal : public IUnknown {
+IVirtualDesktopManagerInternal2 : public IUnknown, IVTDesktopManagerInternalInterface {
    public:
     virtual HRESULT STDMETHODCALLTYPE GetCount(HWND hwnd, UINT * pCount) = 0;
     virtual HRESULT STDMETHODCALLTYPE MoveViewToDesktop(IApplicationView * _IApplicationView, IVirtualDesktop * _IVirtualDesktop) = 0;
@@ -142,10 +136,13 @@ IVirtualDesktopManagerInternal : public IUnknown {
     virtual HRESULT STDMETHODCALLTYPE CopyDesktopState(IApplicationView * pView0, IApplicationView * pView02) = 0;
     virtual HRESULT STDMETHODCALLTYPE GetDesktopPerMonitor(BOOL * state) = 0;
     virtual HRESULT STDMETHODCALLTYPE SetDesktopPerMonitor(BOOL state) = 0;
+    
+    void create_desktop(){
+        std::cout << "WORKING";
+        return;
+    }
 };
 
-// EXTERN_C const IID IID_IVirtualDesktopManager;
-// a5cd92ff-29be-454c-8d04-d82879fb3f1b
 MIDL_INTERFACE("A5CD92FF-29BE-454C-8D04-D82879FB3F1B")
 IVirtualDesktopManager : public IUnknown {
    public:
@@ -154,7 +151,6 @@ IVirtualDesktopManager : public IUnknown {
     virtual HRESULT STDMETHODCALLTYPE MoveWindowToDesktop(HWND _HWND, REFGUID _REFGUID) = 0;
 };
 
-// EXTERN_C const IID IID_IVirtualDesktopPinnedApps;
 MIDL_INTERFACE("4CE81583-1E4C-4632-A621-07A53543148F")
 IVirtualDesktopPinnedApps : public IUnknown {
    public:
@@ -166,7 +162,6 @@ IVirtualDesktopPinnedApps : public IUnknown {
     virtual HRESULT STDMETHODCALLTYPE UnpinView(IApplicationView * _IApplicationView) = 0;
 };
 
-// EXTERN_C const IID IID_IApplicationViewCollection;
 MIDL_INTERFACE("1841C6D7-4F9D-42C0-AF41-8747538F10E5")
 IApplicationViewCollection : public IUnknown {
    public:
@@ -186,7 +181,7 @@ IApplicationViewCollection : public IUnknown {
 class VDesktopAPI {
    public:
     static IServiceProvider *service_provider;
-    static IVirtualDesktopManagerInternal *desktop_manager_internal;
+    static IVirtualDesktopManagerInternal2 *desktop_manager_internal;
     static IApplicationViewCollection *application_view_collection;
 
     static bool init();
@@ -203,32 +198,5 @@ class VDesktopAPI {
     static bool goto_next_desktop();
     static bool goto_previous_desktop();
     static bool goto_this_desktop(int to_this);
+    static void create_desktop();
 };
-
-// EXTERN_C const IID IID_IVirtualDesktopNotification;
-
-// MIDL_INTERFACE("C179334C-4295-40D3-BEA1-C654D965605A")
-// IVirtualDesktopNotification : public IUnknown {
-//    public:
-//     virtual HRESULT STDMETHODCALLTYPE VirtualDesktopCreated(IVirtualDesktop * pDesktop) = 0;
-
-//     virtual HRESULT STDMETHODCALLTYPE VirtualDesktopDestroyBegin(IVirtualDesktop * pDesktopDestroyed, IVirtualDesktop * pDesktopFallback) = 0;
-
-//     virtual HRESULT STDMETHODCALLTYPE VirtualDesktopDestroyFailed(IVirtualDesktop * pDesktopDestroyed, IVirtualDesktop * pDesktopFallback) = 0;
-
-//     virtual HRESULT STDMETHODCALLTYPE VirtualDesktopDestroyed(IVirtualDesktop * pDesktopDestroyed, IVirtualDesktop * pDesktopFallback) = 0;
-
-//     virtual HRESULT STDMETHODCALLTYPE ViewVirtualDesktopChanged(IApplicationView * pView) = 0;
-
-//     virtual HRESULT STDMETHODCALLTYPE CurrentVirtualDesktopChanged(IVirtualDesktop * pDesktopOld, IVirtualDesktop * pDesktopNew) = 0;
-// };
-
-// EXTERN_C const IID IID_IVirtualDesktopNotificationService;
-
-// MIDL_INTERFACE("0CD45E71-D927-4F15-8B0A-8FEF525337BF")
-// IVirtualDesktopNotificationService : public IUnknown {
-//    public:
-//     virtual HRESULT STDMETHODCALLTYPE Register(IVirtualDesktopNotification * pNotification, DWORD * pdwCookie) = 0;
-
-//     virtual HRESULT STDMETHODCALLTYPE Unregister(DWORD dwCookie) = 0;
-// };

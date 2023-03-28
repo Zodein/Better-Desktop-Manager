@@ -5,7 +5,8 @@ VirtualDesktop::~VirtualDesktop() {
         delete i;
     }
     windows.clear();
-    i_vt->Release();
+    if (i_vt != nullptr)
+        i_vt->Release();
 }
 
 VirtualDesktop::VirtualDesktop(std::wstring guid, int index, IVirtualDesktop *i_vt, bool is_active, int render_left, int render_top, int render_right, int render_bottom) {

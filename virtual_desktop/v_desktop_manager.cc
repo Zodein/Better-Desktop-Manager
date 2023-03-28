@@ -80,6 +80,8 @@ void VDesktopManager::refresh_v_desktops() {
                     this->virtual_desktops_index.insert({i, std::wstring(id)});
                 }
             }
+            this->virtual_desktops.insert({std::wstring(L"add_desktop"), new VirtualDesktop(std::wstring(L"add_desktop"), virtual_desktops.size(), nullptr, false)});
+            this->virtual_desktops_index.insert({virtual_desktops_index.size(), std::wstring(L"add_desktop")});
             this->calculate_vdesktops_pose();
             desktops->Release();
         }
@@ -281,7 +283,7 @@ void VDesktopManager::check_vdesktop_data() {
                     this->virtual_desktops_index_comparing.insert({i, std::wstring(id)});
                 }
             }
-            bool any_stale = this->virtual_desktops.size() != this->virtual_desktops_index_comparing.size();  // check phase 1
+            bool any_stale = this->virtual_desktops.size() - 1 != this->virtual_desktops_index_comparing.size();  // check phase 1
             if (!any_stale) {                                                                                 // check phase 2
                 for (auto i : this->virtual_desktops_index_comparing) {
                     auto temp = this->virtual_desktops.find(i.second);
@@ -321,6 +323,7 @@ void VDesktopManager::refresh_data() {
         t1.join();
         lock.unlock();
         lock1.unlock();
+        this->update_current_desktop();
         this->c_s->render_n_detach();
     }
 }
@@ -353,9 +356,9 @@ BOOL CALLBACK VDesktopManager::collector_callback(HWND hwnd, LPARAM lParam) {
                 temp->second->windows.push_back(new Thumbnail(hwnd, c_s->hwnd, temp->second->windows.size(), c_s->monitor, s));
                 {
                     HICON iconHandle = nullptr;
-                    iconHandle = (HICON)SendMessage(hwnd, WM_GETICON, ICON_SMALL2, 0);
-                    if (iconHandle == nullptr) iconHandle = (HICON)SendMessage(hwnd, WM_GETICON, ICON_BIG, 0);
-                    if (iconHandle == nullptr) iconHandle = (HICON)SendMessage(hwnd, WM_GETICON, ICON_SMALL, 0);
+                    (HICON)SendMessageTimeout(hwnd, WM_GETICON, ICON_SMALL2, 0, SMTO_ABORTIFHUNG | SMTO_NORMAL, 10, (PDWORD_PTR)&iconHandle);
+                    if (iconHandle == nullptr) (HICON)SendMessageTimeout(hwnd, WM_GETICON, ICON_BIG, 0, SMTO_ABORTIFHUNG | SMTO_NORMAL, 10, (PDWORD_PTR)&iconHandle);
+                    if (iconHandle == nullptr) (HICON)SendMessageTimeout(hwnd, WM_GETICON, ICON_SMALL, 0, SMTO_ABORTIFHUNG | SMTO_NORMAL, 10, (PDWORD_PTR)&iconHandle);
                     if (iconHandle == nullptr) iconHandle = (HICON)GetClassLongPtr(hwnd, GCLP_HICON);
                     if (iconHandle == nullptr) iconHandle = (HICON)GetClassLongPtr(hwnd, GCLP_HICONSM);
                     if (iconHandle == nullptr) iconHandle = (HICON)LoadIcon(NULL, IDI_APPLICATION);

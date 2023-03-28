@@ -27,6 +27,8 @@ class CommandCenter {
     static D2D1_COLOR_F const title_color;
     static D2D1_COLOR_F const title_bg_color;
     static D2D1_COLOR_F const title_onmouse_bg_color;
+    static D2D1_COLOR_F const title_active_vt_color;
+    static D2D1_COLOR_F const vt_bg_color;
     static D2D1_COLOR_F const active_vt_bg_color;
 
     static int selected_border;
@@ -73,6 +75,8 @@ class CommandCenter {
     ComPtr<ID2D1SolidColorBrush> title_brush;
     ComPtr<ID2D1SolidColorBrush> title_bg_brush;
     ComPtr<ID2D1SolidColorBrush> title_onmouse_bg_brush;
+    ComPtr<ID2D1SolidColorBrush> title_active_vt_brush;
+    ComPtr<ID2D1SolidColorBrush> vt_bg_brush;
     ComPtr<ID2D1SolidColorBrush> active_vt_bg_brush;
     RECT rect = {0, 0, 0, 0};
 
