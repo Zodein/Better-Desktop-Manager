@@ -42,6 +42,9 @@ class VDesktopManager {
     void check_thumbnail_data();
     void check_vdesktop_data();
     void refresh_data();
+    VirtualDesktop *get_vdesktop_by_index(int index);
+    VirtualDesktop *get_vdesktop_by_guid(std::wstring guid);
+    VirtualDesktop *get_vdesktop_by_guid(GUID guid);
     static BOOL CALLBACK collector_callback(HWND hwnd, LPARAM lParam);
     static BOOL CALLBACK comparing_collector_callback(HWND hwnd, LPARAM lParam);
 };

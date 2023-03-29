@@ -284,7 +284,7 @@ void VDesktopManager::check_vdesktop_data() {
                 }
             }
             bool any_stale = this->virtual_desktops.size() - 1 != this->virtual_desktops_index_comparing.size();  // check phase 1
-            if (!any_stale) {                                                                                 // check phase 2
+            if (!any_stale) {                                                                                     // check phase 2
                 for (auto i : this->virtual_desktops_index_comparing) {
                     auto temp = this->virtual_desktops.find(i.second);
                     if (temp == this->virtual_desktops.end()) {
@@ -328,6 +328,34 @@ void VDesktopManager::refresh_data() {
     }
 }
 
+VirtualDesktop *VDesktopManager::get_vdesktop_by_index(int index) {
+    auto temp = this->virtual_desktops_index.find(index);
+    if (temp != this->virtual_desktops_index.end()) {
+        auto temp2 = this->virtual_desktops.find(temp->second);
+        if (temp2 != this->virtual_desktops.end()) {
+            return temp2->second;
+        }
+    }
+    return nullptr;
+}
+
+VirtualDesktop *VDesktopManager::get_vdesktop_by_guid(std::wstring guid) {
+    auto temp2 = this->virtual_desktops.find(guid);
+    if (temp2 != this->virtual_desktops.end()) {
+        return temp2->second;
+    }
+    return nullptr;
+}
+
+VirtualDesktop *VDesktopManager::get_vdesktop_by_guid(GUID _guid) {
+    std::wstring guid = VDesktopAPI::guid_to_string(_guid);
+    auto temp2 = this->virtual_desktops.find(guid);
+    if (temp2 != this->virtual_desktops.end()) {
+        return temp2->second;
+    }
+    return nullptr;
+}
+
 BOOL CALLBACK VDesktopManager::collector_callback(HWND hwnd, LPARAM lParam) {
     if (!IsWindowVisible(hwnd)) return TRUE;
     CommandCenter *c_s = reinterpret_cast<CommandCenter *>(lParam);
@@ -345,20 +373,19 @@ BOOL CALLBACK VDesktopManager::collector_callback(HWND hwnd, LPARAM lParam) {
         app_view->GetShowInSwitchers(&shown);
         if (shown != 0) {
             app_view->GetVirtualDesktopId(&desktop_guid);
-            auto temp = c_s->desktop_manager->virtual_desktops.find(VDesktopAPI::guid_to_string(desktop_guid));
-            if (temp != c_s->desktop_manager->virtual_desktops.end()) {
-                if (!temp->second->stale_data) return TRUE;
+            if (auto temp = c_s->desktop_manager->get_vdesktop_by_guid(desktop_guid)) {
+                if (!temp->stale_data) return TRUE;
                 std::wstring s;
                 int len = GetWindowTextLength(hwnd) + 1;
                 s.resize(len);
                 GetWindowText(hwnd, LPWSTR(s.c_str()), len);
                 // }
-                temp->second->windows.push_back(new Thumbnail(hwnd, c_s->hwnd, temp->second->windows.size(), c_s->monitor, s));
+                temp->windows.push_back(new Thumbnail(hwnd, c_s->hwnd, temp->windows.size(), c_s->monitor, s));
                 {
                     HICON iconHandle = nullptr;
-                    (HICON)SendMessageTimeout(hwnd, WM_GETICON, ICON_SMALL2, 0, SMTO_ABORTIFHUNG | SMTO_NORMAL, 10, (PDWORD_PTR)&iconHandle);
-                    if (iconHandle == nullptr) (HICON)SendMessageTimeout(hwnd, WM_GETICON, ICON_BIG, 0, SMTO_ABORTIFHUNG | SMTO_NORMAL, 10, (PDWORD_PTR)&iconHandle);
-                    if (iconHandle == nullptr) (HICON)SendMessageTimeout(hwnd, WM_GETICON, ICON_SMALL, 0, SMTO_ABORTIFHUNG | SMTO_NORMAL, 10, (PDWORD_PTR)&iconHandle);
+                    (HICON) SendMessageTimeout(hwnd, WM_GETICON, ICON_SMALL2, 0, SMTO_ABORTIFHUNG | SMTO_NORMAL, 10, (PDWORD_PTR)&iconHandle);
+                    if (iconHandle == nullptr) (HICON) SendMessageTimeout(hwnd, WM_GETICON, ICON_BIG, 0, SMTO_ABORTIFHUNG | SMTO_NORMAL, 10, (PDWORD_PTR)&iconHandle);
+                    if (iconHandle == nullptr) (HICON) SendMessageTimeout(hwnd, WM_GETICON, ICON_SMALL, 0, SMTO_ABORTIFHUNG | SMTO_NORMAL, 10, (PDWORD_PTR)&iconHandle);
                     if (iconHandle == nullptr) iconHandle = (HICON)GetClassLongPtr(hwnd, GCLP_HICON);
                     if (iconHandle == nullptr) iconHandle = (HICON)GetClassLongPtr(hwnd, GCLP_HICONSM);
                     if (iconHandle == nullptr) iconHandle = (HICON)LoadIcon(NULL, IDI_APPLICATION);
@@ -373,7 +400,7 @@ BOOL CALLBACK VDesktopManager::collector_callback(HWND hwnd, LPARAM lParam) {
                             DWORD dwSize = bm.bmWidth * bm.bmHeight * 4;
                             char *pData = new char[dwSize];
                             auto y = GetBitmapBits(iconinfo.hbmColor, dwSize, pData);
-                            c_s->dc->CreateBitmap(D2D1::SizeU(bm.bmWidth, bm.bmHeight), pData, bm.bmWidth * 4, D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)), &temp->second->windows.back()->bmp);
+                            c_s->dc->CreateBitmap(D2D1::SizeU(bm.bmWidth, bm.bmHeight), pData, bm.bmWidth * 4, D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)), &temp->windows.back()->bmp);
                             delete[] pData;
                         }
                     }

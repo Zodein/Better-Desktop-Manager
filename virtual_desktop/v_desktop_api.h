@@ -199,4 +199,5 @@ class VDesktopAPI {
     static bool goto_previous_desktop();
     static bool goto_this_desktop(int to_this);
     static void create_desktop();
+    static void remove_desktop(IVirtualDesktop *destroyDesktop, IVirtualDesktop *fall_back);
 };

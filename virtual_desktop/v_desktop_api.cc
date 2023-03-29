@@ -157,8 +157,14 @@ bool VDesktopAPI::goto_this_desktop(int to_this) {
 }
 
 void VDesktopAPI::create_desktop() {
-    IVirtualDesktop **temp = (IVirtualDesktop**)new int;
+    IVirtualDesktop **temp = (IVirtualDesktop **)new int;
     VDesktopAPI::desktop_manager_internal->CreateDesktopW(0, temp);
+    if (temp) (*temp)->Release();
+}
+
+void VDesktopAPI::remove_desktop(IVirtualDesktop *destroyDesktop, IVirtualDesktop *fall_back) {
+    // IVirtualDesktop *temp = (IVirtualDesktop *)new int;
+    VDesktopAPI::desktop_manager_internal->RemoveDesktop(destroyDesktop, fall_back);
 }
 
 // void IVirtualDesktopManagerInternal2::create_desktop(){

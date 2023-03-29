@@ -35,7 +35,7 @@ D2D1_COLOR_F const CommandCenter::title_bg_color = D2D1::ColorF(0.05, 0.05, 0.05
 D2D1_COLOR_F const CommandCenter::title_onmouse_bg_color = D2D1::ColorF(0.8, 0.8, 0.8, 0.8);
 D2D1_COLOR_F const CommandCenter::title_active_vt_color = D2D1::ColorF(0.9, 0.9, 0.9, 0.9);
 D2D1_COLOR_F const CommandCenter::vt_bg_color = D2D1::ColorF(1.0, 1.0, 1.0, 1.0);
-D2D1_COLOR_F const CommandCenter::active_vt_bg_color = D2D1::ColorF(0.1, 0.1, 0.1, 0.9);
+D2D1_COLOR_F const CommandCenter::active_vt_bg_color = D2D1::ColorF(0.1, 0.1, 0.1, 1.0);
 
 int CommandCenter::selected_border = 4;
 int CommandCenter::onmouse_border = 4;
@@ -228,11 +228,11 @@ int CommandCenter::create_window() {
     writeTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
     writeTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
     writeTextFormat->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
-    writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 64.0f, L"en-us", &virtual_desktop_label_format);
+    writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 32.0f, L"en-us", &virtual_desktop_label_format);
     virtual_desktop_label_format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
     virtual_desktop_label_format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
     virtual_desktop_label_format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
-    writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 18.0f, L"en-us", &virtual_desktop_window_title_format);
+    writeFactory->CreateTextFormat(L"Segoe UI", NULL, DWRITE_FONT_WEIGHT_MEDIUM, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 16.5f, L"en-us", &virtual_desktop_window_title_format);
     virtual_desktop_window_title_format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
     virtual_desktop_window_title_format->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
     virtual_desktop_window_title_format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
@@ -360,40 +360,42 @@ void CommandCenter::render() {
 }
 
 void CommandCenter::render_vdesktops() {
-    int desktop_count = this->desktop_manager->virtual_desktops.size();
+    ID2D1SolidColorBrush* _bg_brush = nullptr;
+    ID2D1SolidColorBrush* _title_brush = nullptr;
     for (auto i : this->desktop_manager->virtual_desktops_index) {
-        auto temp_obj2 = this->desktop_manager->virtual_desktops.find(i.second);
-        if (temp_obj2 != this->desktop_manager->virtual_desktops.end()) {
-            if (temp_obj2->second->guid.compare(L"add_desktop") == 0) {
-                this->CreateRoundRect(temp_obj2->second->render_left, temp_obj2->second->render_top, temp_obj2->second->render_right, temp_obj2->second->render_bottom, 8, 8, 8, 8, this->vt_bg_brush.Get());
-                dc->DrawText(std::wstring(L"+").c_str(), 1, virtual_desktop_label_format, D2D1::RectF(temp_obj2->second->render_left, temp_obj2->second->render_top, temp_obj2->second->render_right, temp_obj2->second->render_bottom), this->title_bg_brush.Get());
+        if (auto rendering_vdesktop = this->desktop_manager->get_vdesktop_by_index(i.first)) {
+            if (!rendering_vdesktop->guid.compare(L"add_desktop")) {
+                this->CreateRoundRect(rendering_vdesktop->render_left, rendering_vdesktop->render_top, rendering_vdesktop->render_right, rendering_vdesktop->render_bottom, 8, 8, 8, 8, this->vt_bg_brush.Get());
+                dc->DrawText(std::wstring(L"+").c_str(), 1, virtual_desktop_label_format, D2D1::RectF(rendering_vdesktop->render_left, rendering_vdesktop->render_top, rendering_vdesktop->render_right, rendering_vdesktop->render_bottom), this->title_bg_brush.Get());
             } else {
-                ID2D1SolidColorBrush* _bg_brush = nullptr;
-                ID2D1SolidColorBrush* _title_brush = nullptr;
-                if (temp_obj2->second->guid.compare(VDesktopAPI::get_current_desktop_guid_as_string()) == 0) {
+                if (!rendering_vdesktop->guid.compare(VDesktopAPI::get_current_desktop_guid_as_string())) {
                     _bg_brush = active_vt_bg_brush.Get();
                     _title_brush = title_active_vt_brush.Get();
+                    this->CreateRoundRect(rendering_vdesktop->render_left - 2, rendering_vdesktop->render_top - 2, rendering_vdesktop->render_right + 2, rendering_vdesktop->render_bottom + 2, 8, 8, 8, 8, _title_brush);
                 } else {
                     _bg_brush = vt_bg_brush.Get();
                     _title_brush = title_bg_brush.Get();
                 }
-                this->CreateRoundRect(temp_obj2->second->render_left, temp_obj2->second->render_top, temp_obj2->second->render_right, temp_obj2->second->render_bottom, 8, 8, 8, 8, _bg_brush);
-                dc->DrawText(std::to_wstring(i.first + 1).c_str(), i.first + 1 > 0 ? (int)log10((double)i.first + 1) + 1 : 1, virtual_desktop_label_format, D2D1::RectF(temp_obj2->second->render_right - 80, temp_obj2->second->render_bottom - 80, temp_obj2->second->render_right, temp_obj2->second->render_bottom), _title_brush);
-                dc->DrawText(std::to_wstring(temp_obj2->second->windows.size()).c_str(), temp_obj2->second->windows.size() > 0 ? (int)log10((double)temp_obj2->second->windows.size()) + 1 : 1, virtual_desktop_label_format, D2D1::RectF(temp_obj2->second->render_right - 80, temp_obj2->second->render_top, temp_obj2->second->render_right, temp_obj2->second->render_top + 80), _title_brush);
+                this->CreateRoundRect(rendering_vdesktop->render_left, rendering_vdesktop->render_top, rendering_vdesktop->render_right, rendering_vdesktop->render_bottom, 8, 8, 8, 8, _bg_brush);
+                dc->DrawText(std::to_wstring(i.first + 1).c_str(), i.first + 1 > 0 ? (int)log10((double)i.first + 1) + 1 : 1, virtual_desktop_label_format, D2D1::RectF(rendering_vdesktop->render_right - 48, rendering_vdesktop->render_bottom - 48, rendering_vdesktop->render_right, rendering_vdesktop->render_bottom), _title_brush);
+                // dc->DrawText(std::to_wstring(rendering_vdesktop->windows.size()).c_str(), rendering_vdesktop->windows.size() > 0 ? (int)log10((double)rendering_vdesktop->windows.size()) + 1 : 1, virtual_desktop_label_format, D2D1::RectF(rendering_vdesktop->render_right - 80, rendering_vdesktop->render_top, rendering_vdesktop->render_right, rendering_vdesktop->render_top + 80), _title_brush);
                 int u = 0;
-                for (auto i : temp_obj2->second->windows) {
+                int windows_size = this->monitor->vt_size->max_title_draw < rendering_vdesktop->windows.size() ? this->monitor->vt_size->max_title_draw : rendering_vdesktop->windows.size();
+                int reference_y = (this->monitor->vt_size->height - (windows_size * 32)) / 2;
+                for (auto i : rendering_vdesktop->windows) {
                     std::wstring title;
                     if (i->title.size() > this->monitor->vt_size->title_maxsize_on_vt) {
                         title = i->title.substr(0, this->monitor->vt_size->title_maxsize_on_vt).append(L"...");
                     } else {
                         title = i->title;
                     }
-                    dc->DrawText(title.c_str(), title.size(), virtual_desktop_window_title_format, D2D1::RectF(temp_obj2->second->render_left + 48, temp_obj2->second->render_top + 32 + (32 * u), temp_obj2->second->render_right - 96, temp_obj2->second->render_top + 32 + 32 + (32 * u)), _title_brush);
+                    dc->DrawText(title.c_str(), title.size(), virtual_desktop_window_title_format, D2D1::RectF(rendering_vdesktop->render_left + 48, reference_y + rendering_vdesktop->render_top + (32 * u), rendering_vdesktop->render_right - 96, reference_y + rendering_vdesktop->render_top + 32 + (32 * u)), _title_brush);
                     if (i->bmp != nullptr) {
-                        dc->DrawBitmap(i->bmp, D2D1::RectF(temp_obj2->second->render_left + 16, temp_obj2->second->render_top + 8 + 32 + (32 * u), temp_obj2->second->render_left + 16 + 16, temp_obj2->second->render_top + 8 + 16 + 32 + (32 * u)));
+                        dc->DrawBitmap(i->bmp, D2D1::RectF(rendering_vdesktop->render_left + 16, reference_y + rendering_vdesktop->render_top + 9 + (32 * u), rendering_vdesktop->render_left + 16 + 16, reference_y + rendering_vdesktop->render_top + 9 + 16 + (32 * u)));
                     }
                     u++;
                     if (u >= this->monitor->vt_size->max_title_draw) break;
+                    // if (u < rendering_vdesktop->windows.size()) dc->DrawLine(D2D1::Point2F(rendering_vdesktop->render_left, reference_y + rendering_vdesktop->render_top + (32 * u) + 1), D2D1::Point2F(rendering_vdesktop->render_right, reference_y + rendering_vdesktop->render_top + (32 * u) + 1), _title_brush);
                 }
             }
         }
@@ -407,7 +409,6 @@ void CommandCenter::on_hotkey_event() {
     this->desktop_manager->register_thumbnails();
     this->reset_selected();
     this->show_window();
-    // InvalidateRect(this->hwnd, NULL, FALSE);
     this->render_n_detach();
     std::thread t1([=]() {
         int i = 0;
@@ -443,7 +444,6 @@ void CommandCenter::on_hotkey_event() {
     });
     t1.detach();
     std::cout << "HOTKEY\n";
-    // }
 }
 
 void CommandCenter::on_print_event() {
@@ -534,7 +534,33 @@ void CommandCenter::on_mousewheel_event(WPARAM w_param, LPARAM l_param) {
 void CommandCenter::on_mousemdown_event(WPARAM w_param, LPARAM l_param) {
     if (!(*this->desktop_manager->active_desktop)) return;
     if (this->mouse_on != -1) {
-        PostMessage((*this->desktop_manager->active_desktop)->windows[this->mouse_on]->self_hwnd, WM_CLOSE, 0, 0);
+        if (this->mouse_on < 1000000) {
+            PostMessage((*this->desktop_manager->active_desktop)->windows[this->mouse_on]->self_hwnd, WM_CLOSE, 0, 0);
+        } else {
+            std::unique_lock<std::mutex> lock(this->thumbnail_destroyer_lock);
+            int index = this->mouse_on - 1000000;
+            if (auto target_vdesktop = this->desktop_manager->get_vdesktop_by_index(index)) {
+                std::thread t1([=]() {  // using thread because virtual desktop api does not allow winproc thread
+                    if (target_vdesktop->guid.compare(L"add_desktop") != 0) {
+                        if (!(*this->desktop_manager->active_desktop)) return;
+                        if (target_vdesktop->guid.compare((*this->desktop_manager->active_desktop)->guid) == 0) {  // if closing vdesktop is active
+                            if (auto next_vdesktop = this->desktop_manager->get_vdesktop_by_index(index + 1)) {
+                                VDesktopAPI::remove_desktop(target_vdesktop->i_vt, next_vdesktop->i_vt);
+                            }
+                        } else {
+                            VDesktopAPI::remove_desktop(target_vdesktop->i_vt, (*this->desktop_manager->active_desktop)->i_vt);
+                        }
+                    }
+                });
+                t1.join();
+                lock.unlock();
+                for (auto i : *this->command_centers) {
+                    i->desktop_manager->refresh_data();
+                    i->selected_window = (*i->desktop_manager->active_desktop)->windows.size() > 0 ? 0 : -1;
+                    i->render_n_detach();
+                }
+            }
+        }
     }
     return;
 }
@@ -552,13 +578,9 @@ void CommandCenter::on_mouseldown_event(WPARAM w_param, LPARAM l_param) {
             (*this->desktop_manager->active_desktop)->windows[mouse_on]->unregister_thumbnail();  // update z-order of the thumbnail
             (*this->desktop_manager->active_desktop)->windows[mouse_on]->register_thumbnail();
         } else {
-            auto temp = this->desktop_manager->virtual_desktops_index.find(mouse_on - 1000000);
-            if (temp != this->desktop_manager->virtual_desktops_index.end()) {
-                auto temp2 = this->desktop_manager->virtual_desktops.find(temp->second);
-                if (temp2 != this->desktop_manager->virtual_desktops.end()) {
-                    this->catched_thumbnail_ref_coord[0] = -(this->virtual_desktop_scroll + GET_X_LPARAM(l_param));
-                    this->catched_thumbnail_ref_coord[1] = 0;
-                }
+            if (this->desktop_manager->get_vdesktop_by_index(mouse_on - 1000000)) {
+                this->catched_thumbnail_ref_coord[0] = -(this->virtual_desktop_scroll + GET_X_LPARAM(l_param));
+                this->catched_thumbnail_ref_coord[1] = 0;
             }
         }
         std::cout << "WM_LBUTTONDOWN\n";
@@ -578,28 +600,25 @@ void CommandCenter::on_mouselup_event(WPARAM w_param, LPARAM l_param) {
                     this->activate_this_window((*this->desktop_manager->active_desktop)->windows[this->mouse_on]->self_hwnd);
                     this->hide_window();
                 } else {
-                    auto temp = this->desktop_manager->virtual_desktops_index.find(this->mouse_on - 1000000);
-                    if (temp != this->desktop_manager->virtual_desktops_index.end()) {
-                        auto temp2 = this->desktop_manager->virtual_desktops.find(temp->second);
-                        if (temp2 != this->desktop_manager->virtual_desktops.end()) {
-                            if (temp2->first.compare((*this->desktop_manager->active_desktop)->guid) == 0) {
-                                this->hide_window();
-                                return;
+                    int index = this->mouse_on - 1000000;
+                    if (auto selected_vdesktop = this->desktop_manager->get_vdesktop_by_index(index)) {
+                        if (!selected_vdesktop->guid.compare((*this->desktop_manager->active_desktop)->guid)) {
+                            this->hide_window();
+                            return;
+                        }
+                        std::thread t1([=]() {  // using thread because virtual desktop api does not allow winproc thread
+                            if (!selected_vdesktop->guid.compare(L"add_desktop")) {
+                                VDesktopAPI::create_desktop();
+                            } else {
+                                VDesktopAPI::go_to(selected_vdesktop->i_vt);
                             }
-                            std::thread t1([=]() {  // using thread because virtual desktop api does not allow winproc thread
-                                if (temp2->first.compare(L"add_desktop") == 0) {
-                                    VDesktopAPI::create_desktop();
-                                } else {
-                                    VDesktopAPI::go_to(temp2->second->i_vt);
-                                }
-                            });
-                            t1.join();
-                            lock.unlock();
-                            for (auto i : *this->command_centers) {
-                                i->desktop_manager->refresh_data();
-                                i->selected_window = (*i->desktop_manager->active_desktop)->windows.size() > 0 ? 0 : -1;
-                                i->render_n_detach();
-                            }
+                        });
+                        t1.join();
+                        lock.unlock();
+                        for (auto i : *this->command_centers) {
+                            i->desktop_manager->refresh_data();
+                            i->selected_window = (*i->desktop_manager->active_desktop)->windows.size() > 0 ? 0 : -1;
+                            i->render_n_detach();
                         }
                     }
                 }
@@ -687,7 +706,6 @@ void CommandCenter::on_mousemove_event(LPARAM l_param) {
     }
     if (this->mouse_on != -1) {
         this->mouse_on = -1;
-        // InvalidateRect(this->hwnd, NULL, FALSE);
         this->render_n_detach();
     }
     return;

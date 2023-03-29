@@ -47,8 +47,8 @@ class Monitor {
         this->vt_size->width = (this->vt_size->height * this->ratio);
         this->vt_size->ratio = this->ratio;
 
-        this->vt_size->max_title_draw = this->vt_size->height / 40;
-        this->vt_size->title_maxsize_on_vt = (this->vt_size->width - (this->vt_size->reference_x + this->vt_size->v_margin + 32 + 64)) / 8.5;  // +32 for icon +64 for desktop counter
+        this->vt_size->max_title_draw = this->vt_size->height / 34;
+        this->vt_size->title_maxsize_on_vt = (this->vt_size->width - (this->vt_size->reference_x + this->vt_size->v_margin + 32 + 32)) / 7.7;  // +32 for icon +32 for desktop counter
     }
     int get_width() { return this->right - this->left; }
     int get_height() { return this->bottom - this->top; }
