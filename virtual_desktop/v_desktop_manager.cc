@@ -112,13 +112,13 @@ void VDesktopManager::calculate_thumbnails_pose(double extra_ratio) {
     if ((*this->active_desktop)->windows.size() == 0) return;
     {
         while (i < (*this->active_desktop)->windows.size()) {
-            if ((this->c_s->thumbnail_height * (*this->active_desktop)->windows[i]->ratio * extra_ratio) > this->window_width) {
+            if ((this->c_s->monitor->thumbnail_size->height * (*this->active_desktop)->windows[i]->ratio * extra_ratio) > this->window_width) {
                 this->widths.push_back(this->window_width);
                 i++;
             } else {
-                int x = this->c_s->margin;
+                int x = this->c_s->monitor->thumbnail_size->margin;
                 while (1) {
-                    int reference_x = (this->c_s->thumbnail_height + this->c_s->margin) * (*this->active_desktop)->windows[i]->ratio * extra_ratio;
+                    int reference_x = (this->c_s->monitor->thumbnail_size->height + this->c_s->monitor->thumbnail_size->margin) * (*this->active_desktop)->windows[i]->ratio * extra_ratio;
                     if (x + reference_x >= this->window_width) break;
                     x += reference_x;
                     i++;
@@ -128,7 +128,7 @@ void VDesktopManager::calculate_thumbnails_pose(double extra_ratio) {
             }
         }
 
-        if (((this->c_s->thumbnail_height + this->c_s->margin + this->c_s->title_height) * this->widths.size() * extra_ratio) > (this->window_height * 0.75)) {
+        if (((this->c_s->monitor->thumbnail_size->height + this->c_s->monitor->thumbnail_size->margin + this->c_s->monitor->thumbnail_size->title_height) * this->widths.size() * extra_ratio) > (this->window_height * 0.75)) {
             return this->calculate_thumbnails_pose(extra_ratio * (double)(0.9));
         }
     }
@@ -138,12 +138,12 @@ void VDesktopManager::calculate_thumbnails_pose(double extra_ratio) {
     int reference_y = 0;
     {
         reference_y = this->window_height * 0.75;
-        reference_y -= (this->c_s->thumbnail_height + this->c_s->margin + this->c_s->title_height) * (this->widths.size()) * extra_ratio;
+        reference_y -= (this->c_s->monitor->thumbnail_size->height + this->c_s->monitor->thumbnail_size->margin + this->c_s->monitor->thumbnail_size->title_height) * (this->widths.size()) * extra_ratio;
         reference_y /= 2;
     }
     int y = 0;
     while (i < (*this->active_desktop)->windows.size()) {
-        if (reference_x + (this->c_s->thumbnail_height * (*this->active_desktop)->windows[i]->ratio * extra_ratio) + this->c_s->margin > ((this->c_s->monitor->get_width() / 2) + (this->window_width / 2)) && y != 0) {
+        if (reference_x + (this->c_s->monitor->thumbnail_size->height * (*this->active_desktop)->windows[i]->ratio * extra_ratio) + this->c_s->monitor->thumbnail_size->margin > ((this->c_s->monitor->get_width() / 2) + (this->window_width / 2)) && y != 0) {
             u++;
             y = 0;
             reference_x = (this->c_s->monitor->get_width() - this->widths[u]) / 2;
@@ -151,31 +151,31 @@ void VDesktopManager::calculate_thumbnails_pose(double extra_ratio) {
         }
         {
             (*this->active_desktop)->windows[i]->thumbnail_position.x = 0;
-            (*this->active_desktop)->windows[i]->thumbnail_position.y = (this->c_s->thumbnail_height + this->c_s->margin) * u * extra_ratio + (this->c_s->title_height * u);
-            (*this->active_desktop)->windows[i]->thumbnail_position.width = this->c_s->thumbnail_height * (*this->active_desktop)->windows[i]->ratio * extra_ratio;
-            (*this->active_desktop)->windows[i]->thumbnail_position.height = this->c_s->thumbnail_height * extra_ratio;
+            (*this->active_desktop)->windows[i]->thumbnail_position.y = (this->c_s->monitor->thumbnail_size->height + this->c_s->monitor->thumbnail_size->margin) * u * extra_ratio + (this->c_s->monitor->thumbnail_size->title_height * u);
+            (*this->active_desktop)->windows[i]->thumbnail_position.width = this->c_s->monitor->thumbnail_size->height * (*this->active_desktop)->windows[i]->ratio * extra_ratio;
+            (*this->active_desktop)->windows[i]->thumbnail_position.height = this->c_s->monitor->thumbnail_size->height * extra_ratio;
         }
         {
-            (*this->active_desktop)->windows[i]->thumbnail_position.x += this->c_s->margin;
+            (*this->active_desktop)->windows[i]->thumbnail_position.x += this->c_s->monitor->thumbnail_size->margin;
             (*this->active_desktop)->windows[i]->thumbnail_position.x += reference_x;
 
-            (*this->active_desktop)->windows[i]->thumbnail_position.y += this->c_s->margin;
+            (*this->active_desktop)->windows[i]->thumbnail_position.y += this->c_s->monitor->thumbnail_size->margin;
             (*this->active_desktop)->windows[i]->thumbnail_position.y += reference_y;
         }
 
         if (((*this->active_desktop)->windows[i]->window_position.width > this->window_width || (*this->active_desktop)->windows[i]->window_position.height > (this->window_height * 0.75)) && (*this->active_desktop)->windows[i]->thumbnail_position.width >= this->window_width) {  // if thumbnail is too large to fit on screen
-            double new_ratio = (double)(this->window_width - ((this->c_s->margin * 2))) / (double)(*this->active_desktop)->windows[i]->thumbnail_position.width;
+            double new_ratio = (double)(this->window_width - ((this->c_s->monitor->thumbnail_size->margin * 2))) / (double)(*this->active_desktop)->windows[i]->thumbnail_position.width;
             (*this->active_desktop)->windows[i]->thumbnail_position.width *= new_ratio;
             (*this->active_desktop)->windows[i]->thumbnail_position.height *= new_ratio;
-            (*this->active_desktop)->windows[i]->thumbnail_position.y += ((this->c_s->thumbnail_height * extra_ratio) - (this->c_s->thumbnail_height * new_ratio)) / 2;
+            (*this->active_desktop)->windows[i]->thumbnail_position.y += ((this->c_s->monitor->thumbnail_size->height * extra_ratio) - (this->c_s->monitor->thumbnail_size->height * new_ratio)) / 2;
         } else if ((*this->active_desktop)->windows[i]->thumbnail_position.width > (*this->active_desktop)->windows[i]->window_position.width && (*this->active_desktop)->windows[i]->thumbnail_position.height > (*this->active_desktop)->windows[i]->window_position.height) {  // if thumbnail is larger than its window
             (*this->active_desktop)->windows[i]->thumbnail_position.width = (*this->active_desktop)->windows[i]->window_position.width;
             (*this->active_desktop)->windows[i]->thumbnail_position.height = (*this->active_desktop)->windows[i]->window_position.height;
-            (*this->active_desktop)->windows[i]->thumbnail_position.y += ((this->c_s->thumbnail_height * extra_ratio) - (*this->active_desktop)->windows[i]->window_position.height) / 2;
+            (*this->active_desktop)->windows[i]->thumbnail_position.y += ((this->c_s->monitor->thumbnail_size->height * extra_ratio) - (*this->active_desktop)->windows[i]->window_position.height) / 2;
         }
-        (*this->active_desktop)->windows[i]->thumbnail_position.y += this->c_s->title_height;
+        (*this->active_desktop)->windows[i]->thumbnail_position.y += this->c_s->monitor->thumbnail_size->title_height;
 
-        reference_x += (*this->active_desktop)->windows[i]->thumbnail_position.width + this->c_s->margin;
+        reference_x += (*this->active_desktop)->windows[i]->thumbnail_position.width + this->c_s->monitor->thumbnail_size->margin;
         i++;
         y++;
     }

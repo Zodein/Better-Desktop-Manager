@@ -110,13 +110,8 @@ IVirtualDesktop2 : public IUnknown {
     virtual HRESULT STDMETHODCALLTYPE GetName(HSTRING * pName) = 0;
 };
 
-class IVTDesktopManagerInternalInterface {
-   public:
-    virtual void create_desktop() = 0;
-};
-
 MIDL_INTERFACE("B2F925B9-5A0F-4D2E-9F4D-2B1507593C10")
-IVirtualDesktopManagerInternal2 : public IUnknown, IVTDesktopManagerInternalInterface {
+IVirtualDesktopManagerInternal2 : public IUnknown {
    public:
     virtual HRESULT STDMETHODCALLTYPE GetCount(HWND hwnd, UINT * pCount) = 0;
     virtual HRESULT STDMETHODCALLTYPE MoveViewToDesktop(IApplicationView * _IApplicationView, IVirtualDesktop * _IVirtualDesktop) = 0;
@@ -136,11 +131,6 @@ IVirtualDesktopManagerInternal2 : public IUnknown, IVTDesktopManagerInternalInte
     virtual HRESULT STDMETHODCALLTYPE CopyDesktopState(IApplicationView * pView0, IApplicationView * pView02) = 0;
     virtual HRESULT STDMETHODCALLTYPE GetDesktopPerMonitor(BOOL * state) = 0;
     virtual HRESULT STDMETHODCALLTYPE SetDesktopPerMonitor(BOOL state) = 0;
-    
-    void create_desktop(){
-        std::cout << "WORKING";
-        return;
-    }
 };
 
 MIDL_INTERFACE("A5CD92FF-29BE-454C-8D04-D82879FB3F1B")
@@ -199,5 +189,6 @@ class VDesktopAPI {
     static bool goto_previous_desktop();
     static bool goto_this_desktop(int to_this);
     static void create_desktop();
+    static void create_desktop(IVirtualDesktop **);
     static void remove_desktop(IVirtualDesktop *destroyDesktop, IVirtualDesktop *fall_back);
 };

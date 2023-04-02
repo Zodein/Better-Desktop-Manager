@@ -19,23 +19,13 @@
 #include "virtual_desktop/v_desktop.h"
 
 int main() {
-    // LPWSTR guidstr = L"{1841C6D7-4F9D-42C0-AF41-8747538F10E5}";
-    // GUID guid;
-    // HRESULT hr = CLSIDFromString(guidstr, (LPCLSID)&guid);
-
-    // std::cout << std::hex << guid.Data1 << "\n";
-    // std::cout << std::hex << guid.Data2 << "\n";
-    // std::cout << std::hex << guid.Data3 << "\n";
-    // for (auto i : guid.Data4) {
-    //     std::cout << std::hex << (int)i << "\n";
-    // }
-
     DWORD MAIN_THREAD_ID = GetCurrentThreadId();
 
     if (!VDesktopAPI::init()) {
         MessageBox(NULL, L"Virtual Desktop API Failed!", L"Error!", MB_ICONEXCLAMATION | MB_OK);
         return 0;
     }
+
 
     CommandCenter::wc.cbSize = sizeof(WNDCLASSEX);
     CommandCenter::wc.style = 0;

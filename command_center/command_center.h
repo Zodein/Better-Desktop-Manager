@@ -31,15 +31,13 @@ class CommandCenter {
     static D2D1_COLOR_F const vt_bg_color;
     static D2D1_COLOR_F const active_vt_bg_color;
 
-    static int selected_border;
-    static int onmouse_border;
-
     std::vector<CommandCenter*>* command_centers;
     VDesktopManager* desktop_manager;
     HWND hwnd;
     static WNDCLASSEX wc;
     int mouse_on = -1;
     int mouse_down = false;
+    int mouser_down = false;
     int mouse_down_on[2] = {0, 0};
     int catched_thumbnail_ref_coord[2] = {0, 0};
     int selected_window = -1;
@@ -49,9 +47,6 @@ class CommandCenter {
     std::mutex render_lock;
     std::mutex thumbnail_destroyer_lock;
 
-    int title_height = 24;
-    int margin = 24;
-    int thumbnail_height = 384;
 
     ComPtr<ID3D11Device> direct3dDevice;
     ComPtr<ID2D1DeviceContext> dc;
@@ -102,6 +97,8 @@ class CommandCenter {
     void on_mousemdown_event(WPARAM w_param, LPARAM l_param);
     void on_mouseldown_event(WPARAM w_param, LPARAM l_param);
     void on_mouselup_event(WPARAM w_param, LPARAM l_param);
+    void on_mouserdown_event(WPARAM w_param, LPARAM l_param);
+    void on_mouserup_event(WPARAM w_param, LPARAM l_param);
     void on_mousemove_event(LPARAM l_param);
 };
 

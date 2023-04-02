@@ -19,6 +19,15 @@ struct VT_Size {
     int title_maxsize_on_vt = 0;
 };
 
+struct ThumbnailSize {
+    int title_height = 24;
+    int margin = 24;
+    int height = 384;
+
+    int selected_border = 4;
+    int onmouse_border = 4;
+};
+
 class Monitor {
    public:
     int left = 0;
@@ -29,6 +38,7 @@ class Monitor {
     bool is_primary = false;
     HMONITOR handle = 0;
     VT_Size *vt_size = new VT_Size;
+    ThumbnailSize *thumbnail_size = new ThumbnailSize;
 
     Monitor(int left, int top, int right, int bottom, bool is_primary, HMONITOR handle) {
         this->left = left;

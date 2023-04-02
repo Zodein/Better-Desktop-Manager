@@ -37,9 +37,6 @@ D2D1_COLOR_F const CommandCenter::title_active_vt_color = D2D1::ColorF(0.9, 0.9,
 D2D1_COLOR_F const CommandCenter::vt_bg_color = D2D1::ColorF(1.0, 1.0, 1.0, 1.0);
 D2D1_COLOR_F const CommandCenter::active_vt_bg_color = D2D1::ColorF(0.1, 0.1, 0.1, 1.0);
 
-int CommandCenter::selected_border = 4;
-int CommandCenter::onmouse_border = 4;
-
 auto user32Lib = LoadLibrary(L"user32.dll");
 auto lSetWindowCompositionAttribute = (SetWindowCompositionAttribute)GetProcAddress(user32Lib, "SetWindowCompositionAttribute");
 
@@ -135,6 +132,14 @@ LRESULT CALLBACK CommandCenter::window_proc(HWND handle_window, UINT message, WP
             this->on_mouselup_event(w_param, l_param);
             break;
         }
+        case WM_RBUTTONDOWN: {
+            this->on_mouserdown_event(w_param, l_param);
+            break;
+        }
+        case WM_RBUTTONUP: {
+            this->on_mouserup_event(w_param, l_param);
+            break;
+        }
         case WM_HOTKEY: {
             this->on_hotkey_event();
             break;
@@ -181,7 +186,7 @@ int CommandCenter::create_window() {
 
     HR(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0, D3D11_SDK_VERSION, &direct3dDevice, nullptr, nullptr));
     HR(direct3dDevice.As(&dxgiDevice));
-    HR(CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, __uuidof(dxFactory), reinterpret_cast<void**>(dxFactory.GetAddressOf())));
+    HR(CreateDXGIFactory2(0, __uuidof(dxFactory), reinterpret_cast<void**>(dxFactory.GetAddressOf())));
     DXGI_SWAP_CHAIN_DESC1 description = {};
     description.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
     description.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -192,7 +197,7 @@ int CommandCenter::create_window() {
     description.Width = monitor->get_width();
     description.Height = monitor->get_height();
     HR(dxFactory->CreateSwapChainForComposition(dxgiDevice.Get(), &description, nullptr, swapChain.GetAddressOf()));
-    D2D1_FACTORY_OPTIONS const options = {D2D1_DEBUG_LEVEL_INFORMATION};
+    D2D1_FACTORY_OPTIONS const options = {D2D1_DEBUG_LEVEL_NONE};
     HR(D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, options, d2Factory.GetAddressOf()));
     HR(d2Factory->CreateDevice(dxgiDevice.Get(), d2Device.GetAddressOf()));
     HR(d2Device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, dc.GetAddressOf()));
@@ -278,6 +283,7 @@ void CommandCenter::hide_window() {
     std::lock_guard<std::mutex> lock(this->render_lock);
     this->mouse_on = -1;
     this->mouse_down = false;
+    this->mouser_down = false;
     this->selected_window = -1;
     this->desktop_manager->unregister_thumbnails();
     return;
@@ -303,16 +309,16 @@ void CommandCenter::render() {
     for (auto i : (*this->desktop_manager->active_desktop)->windows) {
         int border_width = 1;
         rect.left = i->thumbnail_position.x - border_width;
-        rect.top = i->thumbnail_position.y - border_width - this->title_height;
+        rect.top = i->thumbnail_position.y - border_width - this->monitor->thumbnail_size->title_height;
         rect.right = i->thumbnail_position.x + i->thumbnail_position.width + border_width;
         rect.bottom = i->thumbnail_position.y + i->thumbnail_position.height + border_width;
         this->CreateRoundRect(rect.left, rect.top, rect.right, rect.bottom, 16, 16, 0, 0, this->on_mouse_brush.Get());
     }
 
     if (this->selected_window >= 0 && (int)(*this->desktop_manager->active_desktop)->windows.size() > this->selected_window) {
-        int border_width = this->mouse_on == this->selected_window ? selected_border + 4 : selected_border;
+        int border_width = this->mouse_on == this->selected_window ? this->monitor->thumbnail_size->selected_border + this->monitor->thumbnail_size->onmouse_border : this->monitor->thumbnail_size->selected_border;
         rect.left = (*this->desktop_manager->active_desktop)->windows[this->selected_window]->thumbnail_position.x - border_width;
-        rect.top = (*this->desktop_manager->active_desktop)->windows[this->selected_window]->thumbnail_position.y - border_width - this->title_height;
+        rect.top = (*this->desktop_manager->active_desktop)->windows[this->selected_window]->thumbnail_position.y - border_width - this->monitor->thumbnail_size->title_height;
         rect.right = (*this->desktop_manager->active_desktop)->windows[this->selected_window]->thumbnail_position.x + (*this->desktop_manager->active_desktop)->windows[this->selected_window]->thumbnail_position.width + border_width;
         rect.bottom = (*this->desktop_manager->active_desktop)->windows[this->selected_window]->thumbnail_position.y + (*this->desktop_manager->active_desktop)->windows[this->selected_window]->thumbnail_position.height + border_width;
         this->CreateRoundRect(rect.left, rect.top, rect.right, rect.bottom, 16, 16, 0, 0, this->selected_brush.Get());
@@ -320,9 +326,9 @@ void CommandCenter::render() {
 
     if (this->mouse_on >= 0 && (int)(*this->desktop_manager->active_desktop)->windows.size() > this->mouse_on) {
         if (this->mouse_on < 1000000) {
-            int border_width = onmouse_border;
+            int border_width = this->monitor->thumbnail_size->onmouse_border;
             rect.left = (*this->desktop_manager->active_desktop)->windows[this->mouse_on]->thumbnail_position.x - border_width;
-            rect.top = (*this->desktop_manager->active_desktop)->windows[this->mouse_on]->thumbnail_position.y - border_width - this->title_height;
+            rect.top = (*this->desktop_manager->active_desktop)->windows[this->mouse_on]->thumbnail_position.y - border_width - this->monitor->thumbnail_size->title_height;
             rect.right = (*this->desktop_manager->active_desktop)->windows[this->mouse_on]->thumbnail_position.x + (*this->desktop_manager->active_desktop)->windows[this->mouse_on]->thumbnail_position.width + border_width;
             rect.bottom = (*this->desktop_manager->active_desktop)->windows[this->mouse_on]->thumbnail_position.y + (*this->desktop_manager->active_desktop)->windows[this->mouse_on]->thumbnail_position.height + border_width;
             this->CreateRoundRect(rect.left, rect.top, rect.right, rect.bottom, 16, 16, 0, 0, this->on_mouse_brush.Get());
@@ -331,7 +337,7 @@ void CommandCenter::render() {
 
     for (auto i : (*this->desktop_manager->active_desktop)->windows) {
         rect.left = i->thumbnail_position.x;
-        rect.top = i->thumbnail_position.y - this->title_height;
+        rect.top = i->thumbnail_position.y - this->monitor->thumbnail_size->title_height;
         rect.right = i->thumbnail_position.x + i->thumbnail_position.width;
         rect.bottom = i->thumbnail_position.y;
 
@@ -456,8 +462,8 @@ void CommandCenter::on_mousewheel_event(WPARAM w_param, LPARAM l_param) {
     int x = GET_X_LPARAM(l_param);
     int y = GET_Y_LPARAM(l_param);
     // if (y > (this->monitor->get_y2() - (this->monitor->get_height() * 0.25))) {// move vdesktop bar with scroll disabled
-    if (y > (this->monitor->get_y2() - this->monitor->vt_size->v_margin)) {
-        if (y > (this->monitor->get_y2() - this->monitor->vt_size->v_margin)) {
+    if (y > (this->monitor->get_y2() - this->monitor->vt_size->v_margin) || y < (this->monitor->vt_size->v_margin) || this->mouser_down) { // change desktop if mouse on top/bottom edge of the screen 
+        if (y > (this->monitor->get_y2() - this->monitor->vt_size->v_margin) || y < (this->monitor->vt_size->v_margin) || this->mouser_down) {
             if (GET_WHEEL_DELTA_WPARAM(w_param) < 0) {
                 VDesktopAPI::goto_next_desktop();
                 for (auto i : *this->command_centers) {
@@ -634,15 +640,38 @@ void CommandCenter::on_mouselup_event(WPARAM w_param, LPARAM l_param) {
                     if (y > i.second->render_top) {
                         if (x < i.second->render_left + i.second->get_width()) {
                             if (y < i.second->render_top + i.second->get_height()) {
-                                std::thread t1([=]() {  // using thread because virtual desktop api does not allow winproc thread
-                                    IApplicationView* view;
-                                    auto hr = VDesktopAPI::application_view_collection->GetViewForHwnd((*this->desktop_manager->active_desktop)->windows[mouse_on]->self_hwnd, &view);
-                                    if (SUCCEEDED(hr)) {
-                                        VDesktopAPI::desktop_manager_internal->MoveViewToDesktop(view, i.second->i_vt);
-                                        this->mouse_down = false;
+                                if (!i.second->guid.compare(L"add_desktop")) {  // if window dropped on create desktop
+                                    std::thread t1([=]() {                      // using thread because virtual desktop api does not allow winproc thread
+                                        IVirtualDesktop* temp_vt = nullptr;
+                                        VDesktopAPI::create_desktop(&temp_vt);
+                                        if (temp_vt) {
+                                            IApplicationView* view;
+                                            if (SUCCEEDED(VDesktopAPI::application_view_collection->GetViewForHwnd((*this->desktop_manager->active_desktop)->windows[mouse_on]->self_hwnd, &view))) {
+                                                if (this->desktop_manager->virtual_desktops.size() > 0) VDesktopAPI::desktop_manager_internal->MoveViewToDesktop(view, temp_vt);
+                                                this->mouse_down = false;
+                                            }
+                                            (temp_vt)->Release();
+                                        }
+                                    });
+                                    t1.join();
+                                    lock.unlock();
+                                    for (auto i : *this->command_centers) {
+                                        i->desktop_manager->refresh_data();
+                                        i->selected_window = (*i->desktop_manager->active_desktop)->windows.size() > 0 ? 0 : -1;
+                                        i->render_n_detach();
                                     }
-                                });
-                                t1.detach();
+                                    this->mouse_down = false;
+                                    return;
+                                } else {
+                                    std::thread t1([=]() {  // using thread because virtual desktop api does not allow winproc thread
+                                        IApplicationView* view;
+                                        if (SUCCEEDED(VDesktopAPI::application_view_collection->GetViewForHwnd((*this->desktop_manager->active_desktop)->windows[mouse_on]->self_hwnd, &view))) {
+                                            VDesktopAPI::desktop_manager_internal->MoveViewToDesktop(view, i.second->i_vt);
+                                            this->mouse_down = false;
+                                        }
+                                    });
+                                    t1.detach();
+                                }
                             }
                         }
                     }
@@ -655,6 +684,21 @@ void CommandCenter::on_mouselup_event(WPARAM w_param, LPARAM l_param) {
     }
     this->mouse_down = false;
     std::cout << "WM_LBUTTONUP\n";
+    return;
+}
+
+void CommandCenter::on_mouserdown_event(WPARAM w_param, LPARAM l_param) {
+    std::lock_guard<std::mutex> lock(this->thumbnail_destroyer_lock);
+    if (!(*this->desktop_manager->active_desktop)) return;
+    this->mouser_down = true;
+    return;
+}
+
+void CommandCenter::on_mouserup_event(WPARAM w_param, LPARAM l_param) {
+    std::unique_lock<std::mutex> lock(this->thumbnail_destroyer_lock);
+    if (!(*this->desktop_manager->active_desktop)) return;
+    this->mouser_down = false;
+    std::cout << "WM_RBUTTONUP\n";
     return;
 }
 
