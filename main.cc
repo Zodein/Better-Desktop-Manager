@@ -33,7 +33,7 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
                     for (auto i : command_centers) {
                         PostMessage(i->hwnd, WM_HOTKEY, 0, 0);
                     }
-                    // SetForegroundWindow(command_centers[0]->hwnd);  
+                }
             });
             t1.detach();
         } else if (wParam == WM_KEYUP && showing) {

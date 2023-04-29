@@ -265,8 +265,24 @@ void CommandCenter::activate_this_window(HWND hwnd_window) { SwitchToThisWindow(
 
 void CommandCenter::reset_selected() {
     if (!(*this->desktop_manager->active_desktop)) return;
+    bool cursor_on_window = false;
+    POINT p;
+    if (GetCursorPos(&p)) {
+        if (p.x >= this->monitor->get_x()) {
+            if (p.x <= this->monitor->get_x2()) {
+                if (p.y >= this->monitor->get_y()) {
+                    if (p.y <= this->monitor->get_y2()) {
+                        cursor_on_window = true;
+                    }
+                }
+            }
+        }
+    }
     if ((int)(*this->desktop_manager->active_desktop)->windows.size() > 1)
-        this->selected_window = 1;
+        if (cursor_on_window)
+            this->selected_window = 1;
+        else
+            this->selected_window = 0;
     else if ((int)(*this->desktop_manager->active_desktop)->windows.size() > 0)
         this->selected_window = 0;
     else
@@ -275,7 +291,7 @@ void CommandCenter::reset_selected() {
 
 void CommandCenter::show_window() {
     SetWindowPos(this->hwnd, HWND_TOPMOST, this->monitor->get_x(), this->monitor->get_y(), this->monitor->get_width(), this->monitor->get_height(), SWP_SHOWWINDOW);
-    SetFocus(this->hwnd); // can't control mouse if current foreground window was fullscreen without this line
+    SetFocus(this->hwnd);  // can't control mouse if current foreground window was fullscreen without this line
     return;
 }
 
@@ -463,7 +479,7 @@ void CommandCenter::on_mousewheel_event(WPARAM w_param, LPARAM l_param) {
     int x = GET_X_LPARAM(l_param);
     int y = GET_Y_LPARAM(l_param);
     // if (y > (this->monitor->get_y2() - (this->monitor->get_height() * 0.25))) {// move vdesktop bar with scroll disabled
-    if (y > (this->monitor->get_y2() - this->monitor->vt_size->v_margin) || y < (this->monitor->get_y() + this->monitor->vt_size->v_margin) || this->mouser_down) { // change desktop if mouse on top/bottom edge of the screen 
+    if (y > (this->monitor->get_y2() - this->monitor->vt_size->v_margin) || y < (this->monitor->get_y() + this->monitor->vt_size->v_margin) || this->mouser_down) {  // change desktop if mouse on top/bottom edge of the screen
         if (y > (this->monitor->get_y2() - this->monitor->vt_size->v_margin) || y < (this->monitor->get_y() + this->monitor->vt_size->v_margin) || this->mouser_down) {
             if (GET_WHEEL_DELTA_WPARAM(w_param) < 0) {
                 VDesktopAPI::goto_next_desktop();
