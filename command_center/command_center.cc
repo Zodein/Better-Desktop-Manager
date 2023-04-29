@@ -275,6 +275,7 @@ void CommandCenter::reset_selected() {
 
 void CommandCenter::show_window() {
     SetWindowPos(this->hwnd, HWND_TOPMOST, this->monitor->get_x(), this->monitor->get_y(), this->monitor->get_width(), this->monitor->get_height(), SWP_SHOWWINDOW);
+    SetFocus(this->hwnd); // can't control mouse if current foreground window was fullscreen without this line
     return;
 }
 
