@@ -418,7 +418,7 @@ void CommandCenter::on_hotkey_event() {
     this->render_n_detach();
     std::thread t1([=]() {
         int i = 0;
-        while (GetAsyncKeyState(VK_OEM_102)) {
+        while (GetAsyncKeyState(VK_F24)) {
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
             if (!IsWindowVisible(this->hwnd)) return;
             if (i > 20) {
@@ -462,8 +462,8 @@ void CommandCenter::on_mousewheel_event(WPARAM w_param, LPARAM l_param) {
     int x = GET_X_LPARAM(l_param);
     int y = GET_Y_LPARAM(l_param);
     // if (y > (this->monitor->get_y2() - (this->monitor->get_height() * 0.25))) {// move vdesktop bar with scroll disabled
-    if (y > (this->monitor->get_y2() - this->monitor->vt_size->v_margin) || y < (this->monitor->vt_size->v_margin) || this->mouser_down) { // change desktop if mouse on top/bottom edge of the screen 
-        if (y > (this->monitor->get_y2() - this->monitor->vt_size->v_margin) || y < (this->monitor->vt_size->v_margin) || this->mouser_down) {
+    if (y > (this->monitor->get_y2() - this->monitor->vt_size->v_margin) || y < (this->monitor->get_y() + this->monitor->vt_size->v_margin) || this->mouser_down) { // change desktop if mouse on top/bottom edge of the screen 
+        if (y > (this->monitor->get_y2() - this->monitor->vt_size->v_margin) || y < (this->monitor->get_y() + this->monitor->vt_size->v_margin) || this->mouser_down) {
             if (GET_WHEEL_DELTA_WPARAM(w_param) < 0) {
                 VDesktopAPI::goto_next_desktop();
                 for (auto i : *this->command_centers) {
