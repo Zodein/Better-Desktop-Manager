@@ -75,6 +75,7 @@
             "args": [
                 "better-desktop-manager.vcxproj",
                 "/p:configuration=debug",
+                "/p:Platform=x64"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -95,6 +96,7 @@
             "args": [
                 "better-desktop-manager.vcxproj",
                 "/p:configuration=release",
+                "/p:Platform=x64"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
