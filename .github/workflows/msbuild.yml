@@ -20,6 +20,7 @@ env:
   # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
   PROJECT_NAME: better-desktop-manager
   BUILD_CONFIGURATION: Release
+  BUILD_PLATFORM: x64
 
 permissions:
   contents: read
@@ -38,4 +39,4 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
-      run: msbuild ${{env.PROJECT_NAME}}.vcxproj /p:configuration=${{env.BUILD_CONFIGURATION}} 
+      run: msbuild ${{env.PROJECT_NAME}}.vcxproj /p:configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}}
