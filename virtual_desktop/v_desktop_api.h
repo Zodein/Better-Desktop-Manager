@@ -117,6 +117,7 @@ IVirtualDesktopManagerInternal2 : public IUnknown {
     virtual HRESULT STDMETHODCALLTYPE MoveViewToDesktop(IApplicationView * _IApplicationView, IVirtualDesktop * _IVirtualDesktop) = 0;
     virtual HRESULT STDMETHODCALLTYPE CanViewMoveDesktops(IApplicationView * _IApplicationView, UINT * _UINT) = 0;
     virtual HRESULT STDMETHODCALLTYPE GetCurrentDesktop(HWND hwnd, IVirtualDesktop * *pDesktop) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetAllCurrentDesktops(IObjectArray * *array) = 0;
     virtual HRESULT STDMETHODCALLTYPE GetDesktops(HWND hwnd, IObjectArray * *array) = 0;
     virtual HRESULT STDMETHODCALLTYPE GetAdjacentDesktop(IVirtualDesktop * _IVirtualDesktop, AdjacentDesktop _AdjacentDesktop, IVirtualDesktop * *_VirtualDesktop) = 0;
     virtual HRESULT STDMETHODCALLTYPE SwitchDesktop(HWND _HWND, IVirtualDesktop * _IVirtualDesktop) = 0;

@@ -27,7 +27,7 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
         if (wParam == WM_KEYDOWN && !showing) {
             showing = true;
             std::thread t1([=]() {
-                std::cout << "showing = true\n";
+                // std::cout << "showing = true\n";
                 if (command_centers.size() > 0) {
                     SetFocus(command_centers[0]->hwnd);
                     for (auto i : command_centers) {
@@ -38,7 +38,7 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
             t1.detach();
         } else if (wParam == WM_KEYUP && showing) {
             showing = false;
-            std::cout << "showing = false\n";
+            // std::cout << "showing = false\n";
         }
     }
     return CallNextHookEx(NULL, nCode, wParam, lParam);

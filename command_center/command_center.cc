@@ -273,7 +273,7 @@ void CommandCenter::reset_selected() {
                 if (p.y >= this->monitor->get_y()) {
                     if (p.y <= this->monitor->get_y2()) {
                         cursor_on_window = true;
-                    }
+                    } 
                 }
             }
         }
@@ -291,7 +291,7 @@ void CommandCenter::reset_selected() {
 
 void CommandCenter::show_window() {
     SetWindowPos(this->hwnd, HWND_TOPMOST, this->monitor->get_x(), this->monitor->get_y(), this->monitor->get_width(), this->monitor->get_height(), SWP_SHOWWINDOW);
-    SetFocus(this->hwnd);  // can't control mouse if current foreground window was fullscreen without this line
+    this->activate_this_window(this->hwnd);
     return;
 }
 
@@ -466,7 +466,7 @@ void CommandCenter::on_hotkey_event() {
         return;
     });
     t1.detach();
-    std::cout << "HOTKEY\n";
+    // std::cout << "HOTKEY\n";
 }
 
 void CommandCenter::on_print_event() {
@@ -606,7 +606,7 @@ void CommandCenter::on_mouseldown_event(WPARAM w_param, LPARAM l_param) {
                 this->catched_thumbnail_ref_coord[1] = 0;
             }
         }
-        std::cout << "WM_LBUTTONDOWN\n";
+        // std::cout << "WM_LBUTTONDOWN\n";
     }
     return;
 }
@@ -700,7 +700,7 @@ void CommandCenter::on_mouselup_event(WPARAM w_param, LPARAM l_param) {
         this->render_n_detach();
     }
     this->mouse_down = false;
-    std::cout << "WM_LBUTTONUP\n";
+    // std::cout << "WM_LBUTTONUP\n";
     return;
 }
 
@@ -715,7 +715,7 @@ void CommandCenter::on_mouserup_event(WPARAM w_param, LPARAM l_param) {
     std::unique_lock<std::mutex> lock(this->thumbnail_destroyer_lock);
     if (!(*this->desktop_manager->active_desktop)) return;
     this->mouser_down = false;
-    std::cout << "WM_RBUTTONUP\n";
+    // std::cout << "WM_RBUTTONUP\n";
     return;
 }
 
