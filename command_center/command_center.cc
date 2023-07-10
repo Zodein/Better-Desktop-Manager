@@ -34,7 +34,7 @@ D2D1_COLOR_F const CommandCenter::title_color = D2D1::ColorF(0.05, 0.05, 0.05, 0
 D2D1_COLOR_F const CommandCenter::title_bg_color = D2D1::ColorF(0.05, 0.05, 0.05, 0.9);
 D2D1_COLOR_F const CommandCenter::title_onmouse_bg_color = D2D1::ColorF(0.8, 0.8, 0.8, 0.8);
 D2D1_COLOR_F const CommandCenter::title_active_vt_color = D2D1::ColorF(0.9, 0.9, 0.9, 0.9);
-D2D1_COLOR_F const CommandCenter::vt_bg_color = D2D1::ColorF(1.0, 1.0, 1.0, 1.0);
+D2D1_COLOR_F const CommandCenter::vt_bg_color = D2D1::ColorF(0.4, 0.4, 0.4, 0.5);
 D2D1_COLOR_F const CommandCenter::active_vt_bg_color = D2D1::ColorF(0.1, 0.1, 0.1, 1.0);
 
 auto user32Lib = LoadLibrary(L"user32.dll");
@@ -291,7 +291,7 @@ void CommandCenter::reset_selected() {
 
 void CommandCenter::show_window() {
     SetWindowPos(this->hwnd, HWND_TOPMOST, this->monitor->get_x(), this->monitor->get_y(), this->monitor->get_width(), this->monitor->get_height(), SWP_SHOWWINDOW);
-    this->activate_this_window(this->hwnd);
+    // this->activate_this_window(this->hwnd);
     return;
 }
 

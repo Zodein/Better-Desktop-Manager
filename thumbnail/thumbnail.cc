@@ -55,7 +55,7 @@ void Thumbnail::unregister_thumbnail() {
 
 void Thumbnail::update_window_position() {
     RECT rect;
-    if (IsIconic(this->self_hwnd)) {
+    if (IsIconic(this->self_hwnd) || true) {
         WINDOWPLACEMENT placement;
         GetWindowPlacement(this->self_hwnd, &placement);
         if (placement.flags == 2) {
@@ -70,12 +70,20 @@ void Thumbnail::update_window_position() {
             rect.bottom = placement.rcNormalPosition.bottom;
         }
     } else {
-        GetWindowRect(this->self_hwnd, &rect);
+        // GetWindowRect(this->self_hwnd, &rect);
+        DwmGetWindowAttribute(this->self_hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &rect, sizeof(rect));
     }
     this->window_position.x = rect.left;
     this->window_position.y = rect.top;
     this->window_position.width = rect.right - rect.left;
     this->window_position.height = rect.bottom - rect.top;
     this->ratio = (double)this->window_position.width / (double)this->window_position.height;
+
+    if (!(this->ratio > 0))
+        this->ratio = 1;
+    if (this->window_position.width <= 0 || this->window_position.height <= 0){
+        this->window_position.width = 128;
+        this->window_position.height = 128;
+    }
     return;
 }
